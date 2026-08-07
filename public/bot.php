@@ -16,6 +16,14 @@ chdir(__DIR__."/..");
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
 ini_set('log_errors', '1');
+// --- MUHIM (tezlik uchun): kodda bir nechta joyda tashqi saytlarga (SMS
+// provayder, cbu.uz valyuta kursi, Google Translate) file_get_contents()
+// orqali murojaat qilinadi. Standart holatda bunday so'rov 60 soniyagacha
+// javob kutishi mumkin — shu vaqt ichida (PHP dev-server ko'pincha bir
+// vaqtning o'zida bitta so'rovni qayta ishlagani sabab) BUTUN bot boshqa
+// hech kimga javob bermay qoladi. Shu sababli standart kutish vaqtini
+// qisqartiramiz:
+ini_set('default_socket_timeout', 8);
 
 // --- MUHIM (barqarorlik uchun): PHP 8.1+ da mysqli standart holatda SQL xatosida
 // Exception "otadi" (throw qiladi). Bu kod esa mysqli_query natijasini eski uslubda
@@ -142,6 +150,14 @@ function bot($method,$datas=[]){
     $ch = curl_init();
     curl_setopt($ch,CURLOPT_URL,$url);
     curl_setopt($ch,CURLOPT_RETURNTRANSFER,true);
+    // --- MUHIM (tezlik uchun): timeout qo'yilmagan bo'lsa, Telegram tomon
+    // sekinlashganda (yoki umuman javob bermay qolsa) bitta so'rov CHEKSIZ
+    // kutib turishi mumkin edi. PHP dev-server ko'pincha BITTA so'rovni bir
+    // vaqtda ishlaydi, shuning uchun bitta "osilib qolgan" so'rov BOSHQA
+    // BARCHA foydalanuvchilar uchun ham botni to'xtatib qo'yardi — "bot
+    // sekin ishlayapti" degan hissiyot aynan shundan kelib chiqadi.
+    curl_setopt($ch,CURLOPT_CONNECTTIMEOUT,5);
+    curl_setopt($ch,CURLOPT_TIMEOUT,15);
     curl_setopt($ch,CURLOPT_POSTFIELDS,$datas);
     $res = curl_exec($ch);
     if(curl_error($ch)){
@@ -249,7 +265,7 @@ function referal($hi){
 
 
 function get($h){
-return is_file($h) ? @file_get_contents($h) : false;
+return is_file($h) ? @file_get_contents($h) : '';
 }
 
 function put($h,$r){
@@ -263,7 +279,7 @@ file_put_contents($h,$r);
 
 function joinchat($id){
 $array = array("inline_keyboard");
-$get = file_get_contents("set/channel");
+$get = @file_get_contents("set/channel");
 $ex = explode("\n",$get);
 $soni = substr_count($get,"@");
 if($get == null){
@@ -456,6 +472,37 @@ $pul=get("user/$chat_id.pul");
 
 $step = get("user/$cid.step");
 $stepc = get("user/$chat_id.step");
+
+// --- MUHIM (barqarorlik uchun): foydalanuvchi biror "step" jarayonida
+// (masalan API manzili, referal miqdori va h.k. kiritish kutilayotganda)
+// "Orqaga" tugmasini bossa, pastdagi "if($step=="...")" bloklari buni HALI
+// HAM o'sha step uchun kiritilgan matn deb qabul qilib, "Noto'g'ri format"
+// xatosi berardi yoki hatto noto'g'ri qiymatni (masalan "➡️ Orqaga" so'zini
+// API kalit sifatida) saqlab qo'yardi. Shu sabab "Orqaga" bosilganda step
+// darhol tozalanadi (fayldan HAM, joriy $step o'zgaruvchisidan HAM) —
+// shunda pastdagi step tekshiruvlari ishlamay qoladi va foydalanuvchi
+// to'g'ridan-to'g'ri tegishli menyuga qaytadi.
+$orqaga_tugmalari = ["➡️ Orqaga","⏪ Orqaga","⏮️ Orqaga","🔙 Orqaga","⬅️ Orqaga","🗄️ Boshqaruv"];
+if($step && in_array($text, $orqaga_tugmalari, true)){
+    @unlink("user/$cid.step");
+    $step = "";
+}
+if($stepc && in_array($text, $orqaga_tugmalari, true)){
+    @unlink("user/$chat_id.step");
+    $stepc = "";
+}
+
+// --- MUHIM (barqarorlik uchun): pastda ko'plab bloklar ro'yxat (masalan
+// bo'limlar, xizmatlar, to'lov usullari) tuzish uchun avval bo'sh massivga
+// elementlarni bittalab qo'shadi ($k[]=...), so'ng array_chunk($k,...) orqali
+// klaviaturaga aylantiradi. Agar ro'yxat MANBAI BO'SH bo'lsa (masalan hali
+// birorta bo'lim/xizmat qo'shilmagan, yoki "set/payments.txt" fayli mavjud
+// bo'lmasa), $k hech qachon yaratilmay, "undefined" holida qoladi va
+// array_chunk() PHP 8'da FATAL XATO bilan yiqiladi — natijada foydalanuvchi
+// hech qanday javob olmaydi ("Xizmatlar", "Pul kiritish" va h.k. "ishlamay
+// qoladi"). Oldini olish uchun bu massivlarni oldindan bo'sh qilib
+// belgilab qo'yamiz:
+$k = []; $k2 = []; $ko = []; $key = []; $key1 = []; $keyboard2 = []; $keysboard2 = [];
 
 $ort=json_encode([
 'resize_keyboard'=>true,

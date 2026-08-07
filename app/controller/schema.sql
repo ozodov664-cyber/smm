@@ -68,22 +68,30 @@ CREATE TABLE IF NOT EXISTS `providers` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- MUHIM: bot.php `categorys` jadvalidan HAR DOIM `category_id` nomli ustunni
+-- (generik `id` emas) o'qiydi — masalan "callback_data=>tanla1=".$s['category_id'].
+-- Ustun nomi mos kelmasa, bo'lim tanlanganda ID bo'sh (NULL) bo'lib qoladi va
+-- "Xizmatlar" bo'limi butunlay ishlamay qoladi.
 CREATE TABLE IF NOT EXISTS `categorys` (
-  `id` INT NOT NULL AUTO_INCREMENT,
+  `category_id` INT NOT NULL AUTO_INCREMENT,
   `category_name` VARCHAR(255) NOT NULL,
   `category_status` VARCHAR(20) NOT NULL DEFAULT 'active',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`category_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- MUHIM: xuddi shunday, `cates` jadvalida ustun nomi `cate_id` bo'lishi SHART
+-- (bot.php: $s['cate_id'], "WHERE cate_id = ...").
 CREATE TABLE IF NOT EXISTS `cates` (
-  `id` INT NOT NULL AUTO_INCREMENT,
+  `cate_id` INT NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(255) NOT NULL,
   `category_id` INT NOT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`cate_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- MUHIM: `services` jadvalida ham asosiy kalit `service_id` deb nomlanishi
+-- SHART (bot.php: $s['service_id'], "WHERE service_id = ...").
 CREATE TABLE IF NOT EXISTS `services` (
-  `id` INT NOT NULL AUTO_INCREMENT,
+  `service_id` INT NOT NULL AUTO_INCREMENT,
   `service_status` VARCHAR(20) NOT NULL DEFAULT 'active',
   `service_edit` VARCHAR(10) NOT NULL DEFAULT 'false',
   `service_price` DECIMAL(15,4) NOT NULL DEFAULT 0,
@@ -97,7 +105,7 @@ CREATE TABLE IF NOT EXISTS `services` (
   `service_desc` TEXT DEFAULT NULL,
   `service_min` INT DEFAULT 0,
   `service_max` INT DEFAULT 0,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`service_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `myorder` (
