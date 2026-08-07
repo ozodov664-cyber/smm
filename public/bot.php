@@ -4,10 +4,46 @@
 #manba: turkiston_coders obuna buling!	
 #manbasiz kursam xafa qilaman
 
+// --- MUHIM (barqarorlik uchun): butun fayl bo'ylab "user/...", "set/...",
+// "step/..." kabi NISBIY (CWD'ga bog'liq) fayl yo'llari 190+ joyda
+// ishlatilgan. PHP serveri qanday papkadan ishga tushirilishidan qat'i
+// nazar bu yo'llar HAR DOIM to'g'ri joyga (public/ papkasidan bitta
+// yuqoridagi loyiha ildiziga) ishora qilishi uchun joriy ish papkasini
+// aniq belgilab qo'yamiz:
+chdir(__DIR__."/..");
+
 // --- Production sozlamalari: xatolarni ekranga chiqarmaymiz, lekin faylga yozamiz ---
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
 ini_set('log_errors', '1');
+
+// --- MUHIM (barqarorlik uchun): PHP 8.1+ da mysqli standart holatda SQL xatosida
+// Exception "otadi" (throw qiladi). Bu kod esa mysqli_query natijasini eski uslubda
+// (false/true tekshirish orqali) ishlatadi — shuning uchun Exception rejimini
+// o'chiramiz. Aks holda vaqt o'tib baza kattalashgani sari (takroriy referal kod,
+// mavjud bo'lmagan qator va h.k.) tasodifiy so'rovlar butun botni "500 xato" bilan
+// yiqitib qo'yaveradi — foydalanuvchi tez-tez ko'rgan "xato ko'payishi" aynan shundan.
+mysqli_report(MYSQLI_REPORT_OFF);
+
+// --- Kutilmagan xato/Exception botni butunlay yiqitmasin va Telegram'ga baribir
+// javob qaytsin (aks holda Telegram webhookni vaqtincha to'xtatib qo'yishi yoki
+// qayta-qayta urinib, xatolarni yanada ko'paytirishi mumkin). Hammasi faylga
+// (Railway loglariga) yoziladi, ekranga chiqmaydi. ---
+set_exception_handler(function($e){
+    error_log("[bot.php] Uncaught exception: ".$e->getMessage()." in ".$e->getFile().":".$e->getLine());
+    if(!headers_sent()) http_response_code(200);
+});
+set_error_handler(function($errno,$errstr,$errfile,$errline){
+    error_log("[bot.php] PHP xato [$errno]: $errstr in $errfile:$errline");
+    return true;
+}, E_WARNING | E_NOTICE | E_DEPRECATED | E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED);
+register_shutdown_function(function(){
+    $err = error_get_last();
+    if($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)){
+        error_log("[bot.php] Fatal xato: ".$err['message']." in ".$err['file'].":".$err['line']);
+        if(!headers_sent()) http_response_code(200);
+    }
+});
 
 session_start();
 date_default_timezone_set("Asia/Tashkent");
@@ -64,7 +100,10 @@ $content = file_get_contents($s, false, stream_context_create($qas));
 return $content ? $content : json_encode(['balance'=>" ?"]);
 }
 
-require ("../app/controller/sql_connect.php");
+// __DIR__ ishlatildi — bu CWD (joriy ish papkasi)dan qat'i nazar, doim
+// public/ papkasidan bitta yuqoriga chiqib, app/controller/ ichidan
+// sql_connect.php faylini to'g'ri topishini kafolatlaydi.
+require (__DIR__."/../app/controller/sql_connect.php");
 
 	
 
@@ -393,8 +432,8 @@ sms($cid.$chat_id,"🥶 Panel vaqtincha muzlatilgan",null);
 $resu = mysqli_query($connect,"SELECT * FROM `settings`");
 $setting = mysqli_fetch_assoc($resu);
 
-if(!is_dir(__DIR__."/../user")) @mkdir(__DIR__."/../user", 0755, true);
-if(!is_dir(__DIR__."/../set")) @mkdir(__DIR__."/../set", 0755, true);
+if(!is_dir("user")) mkdir("user", 0755, true);
+if(!is_dir("set")) mkdir("set", 0755, true);
 
 
 $pul=get("user/$chat_id.pul");
@@ -5114,33 +5153,76 @@ sms($cid,"⚠️ Ushbu raqam bilan premium olingan
 
 Qaytadan urinib koring",null);
 }else{
-// AVTOMATIK DOMEN/BOT YARATISH OLIB TASHLANDI (pastdagi izohga qarang, xuddi
-// shu muammo "🤖 SMM Bot" bo'limida ham bor edi) -> qo'lda (admin orqali)
-// bajariladigan qilib almashtirildi, chunki ispsystem.sysdc.uz infratuzilmasi
-// sizga ulanmaydi va bu yerga yetib kelgan har bir so'rov Fatal Error berardi.
-$pay = (int)explode("=",$step)[2];
-$pul = (int)mysqli_fetch_assoc(mysqli_query($connect,"SELECT*FROM users WHERE id=$cid"))['balance'];
-if($pul>=$pay){
+$sl =str_replace(["_","_bot","bot"],["","",""],strtolower($sb));
+$ard=array("wolfgram.uz","wolfgram.uz","wolfgram.uz");
+$name = $sl.".".$ard[rand(0,2)];
+$content = url_query("https://ispsystem.sysdc.uz/ispmgr?func=emaildomain.edit&defaction=ignore&ipsrc=auto&owner=".$isp_user."&name=".$name."&authinfo=".$acc."&out=xml&sok=yes");
+$content = url_query("https://ispsystem.sysdc.uz/ispmgr?func=webdomain.edit&owner=".$isp_user."&authinfo=$acc&name=".$name."&email=".$sb."@".$name."&sok=yes&out=xml");
+//url_query("https://ispsystem.sysdc.uz/ispmgr?func=webdomain.edit&elid=" .urlencode($name). "&redirect_http=on&charset=".urlencode("UTF-8")."&sok=ok&out=xml&authinfo=".$acc);
+url_query("https://ispsystem.sysdc.uz/ispmgr?func=letsencrypt.generate&domain_name=".urlencode($name)."&sok=ok&out=xml&authinfo=".$acc);
+$parse_xml = simplexml_load_string($content);
+file_get_contents("https://api.telegram.org/bot".$text."/setwebhook?url=https://$name/bot/bot.php");
+if(isset($parse_xml->ok)){
+$pul = mysqli_fetch_assoc(mysqli_query($connect,"SELECT*FROM users WHERE id=$cid"))['balance'];
+$pay = explode("=",$step)[2];
 $a = $pul-$pay;
 mysqli_query($connect,"UPDATE users SET balance = $a WHERE id = $cid");
-sms($cid,"✅ So'rovingiz qabul qilindi!
+sms($cid,"✅ Botingiz muvaffaqiyatli yaratildi.\n«➡️ Botga o‘tish» tugmasi orqali botingizga kiring
 
-🤖 Bot: @$sb
-💵 To'lov: ".number($pay)." so'm yechildi.
+📑 Eslatma:
+Sizga berilgan $name domeni aktivlaahmagunicha botingiz ishlamasligi mumkin.
+",json_encode([
+'inline_keyboard'=>[
+[['text'=>"➡️ Botga o‘tish",'url'=>"t.me/$sb"]],
+[['text'=>"➡️ Saytga o‘tish",'url'=>"https://$name"]],
+]
+]));
+//
+$content = url_query('https://ispsystem.sysdc.uz/ispmgr?func=file.extract&elid=' .urlencode("/www/".$_SERVER['HTTP_HOST']."/wolfgrambot/bots/Premium.zip"). '&newdir=' .urlencode("/www/".$name."/"). '&sok=ok&out=xml&authinfo='.$acc);
+$parse_xml = simplexml_load_string($content);
+if($parse_xml->ok){
+$dbdet = json_decode(generatemysql(),1);
+$sql = file_get_contents("../../".$name."/app/controller/sql_connect.php");
+$sql = str_replace(["BOTUSER","DBUSER","DBPASS"],["$sb",$isp_user."_".$dbdet['HOST'],$dbdet['PASSWORD']],$sql);
+file_put_contents("../../".$name."/app/controller/sql_connect.php",$sql);
+file_get_contents("http://$name/app/controller/sql_connect.php?db=down");
+$sb=json_decode(file_get_contents("https://api.telegram.org/bot".$text."/getMe"),1)['result']['username'];
+$bot = file_get_contents("../../".$name."/bot/bot.php");
+$bot = str_replace(["APITOKEN","ADMIN"],[$text,$cid],$bot);
+file_put_contents("../../".$name."/bot/bot.php",$bot);
+unlink("../../$name/index.html");
+put("../../$name/payme.php",get("../payme.php"));
+}
+plusmysql($dbdet['HOST'],$dbdet['PASSWORD']);
+$kuni = explode("=",$step)[3];
+$saved = json_encode(["day"=>"31","pay"=>"$kuni","admin"=>"$cid","status"=>"on","domain"=>"$name"]);
+$connect->query("INSERT INTO mybots(`name`,`admin`,`details`) VALUES ('$sb','$cid','$saved');");
 
-Admin tez orada siz bilan bog'lanib, Premium botingizni qo'lda faollashtiradi.",null);
-bot('sendMessage',[
-'chat_id'=>$admin,
-'text'=>"🆕 Yangi Premium bot so'rovi (domen yo'q)
-👤 Foydalanuvchi: <a href='tg://user?id=$cid'>$cid</a>
-🤖 Bot: @$sb
-🔑 Token: <code>$text</code>
-💵 To'lov: ".number($pay)." so'm",
-'parse_mode'=>'html',
-]);
-put("user/$cid.step","");
+
+$redhttp=url_query("https://ispsystem.sysdc.uz/ispmgr?func=webdomain.edit&elid=" .urlencode($name). "&redirect_http=on&charset=".urlencode("UTF-8")."&sok=ok&out=xml&authinfo=".$acc);
+$parse_xml = simplexml_load_string($redhttp);
+
+if($parse_xml->ok){
+	
+if (file_exists("../../".$name."/app/db.sql")) {
+	$mysqli = new mysqli("localhost",$isp_user."_".$dbdet['HOST'],$dbdet['PASSWORD'],$isp_user."_".$dbdet['HOST']);
+						$sql = file_get_contents("../../".$name."/app/db.sql");
+					    $mysqli->multi_query($sql);
+					    do {
+					    } while (mysqli_more_results($mysqli) && mysqli_next_result($mysqli));
+					    $mysqli->close();
+					}
+
+
+}
+
+
+
 }else{
-sms($cid,"⚠️ Mablag' yetarli emas!",null);
+sms($cid,"⚠️ Sizga domen tayyorlashda xatolik
+
+Extimol siz yuborgan token bilan bizning serverda domen olingan
+Boshqa token kiritib ko‘ring",null);
 }
 }
 }else{
@@ -5315,37 +5397,76 @@ sms($cid,"⚠️ Ushbu token bilan bizning serverda bot ochilgan
 
 Qaytadan urinib koring",null);
 }else{
-// AVTOMATIK DOMEN/BOT YARATISH OLIB TASHLANDI:
-// Bu yerda avval ispsystem.sysdc.uz (asl muallifning shaxsiy hosting-paneli)ga
-// ulanadigan url_query()/generatemysql()/plusmysql() funksiyalari chaqirilardi,
-// lekin ular faylning hech qayerida aniqlanmagan edi -> shu qatorga yetib
-// kelgan HAR BIR so'rovda PHP "Call to undefined function" bilan Fatal Error
-// berib, bot hech qanday javob qaytarmay osilib qolardi. Bu infratuzilma
-// (server/login) sizga baribir ulanmaydi, shuning uchun endi so'rov qo'lda
-// (admin orqali) bajariladigan qilib almashtirildi.
-$pay = (int)explode("=",$step)[2];
-$pul = (int)mysqli_fetch_assoc(mysqli_query($connect,"SELECT*FROM users WHERE id=$cid"))['balance'];
-if($pul>=$pay){
+$sl =str_replace(["_","_bot","bot"],["","",""],strtolower($sb));
+$ard=array("wolfgram.uz","wolfgram.uz","wolfgram.uz");
+$name = $sl.".".$ard[rand(0,2)];
+$content = url_query("https://ispsystem.sysdc.uz/ispmgr?func=emaildomain.edit&defaction=ignore&ipsrc=auto&owner=".$isp_user."&name=".$name."&authinfo=".$acc."&out=xml&sok=yes");
+$content = url_query("https://ispsystem.sysdc.uz/ispmgr?func=webdomain.edit&owner=".$isp_user."&authinfo=$acc&name=".$name."&email=".$sb."@".$name."&sok=yes&out=xml");
+//url_query("https://ispsystem.sysdc.uz/ispmgr?func=webdomain.edit&elid=" .urlencode($name). "&redirect_http=on&charset=".urlencode("UTF-8")."&sok=ok&out=xml&authinfo=".$acc);
+url_query("https://ispsystem.sysdc.uz/ispmgr?func=letsencrypt.generate&domain_name=".urlencode($name)."&sok=ok&out=xml&authinfo=".$acc);
+$parse_xml = simplexml_load_string($content);
+file_get_contents("https://api.telegram.org/bot".$text."/setwebhook?url=https://$name/bot/bot.php");
+if(isset($parse_xml->ok)){
+$pul = mysqli_fetch_assoc(mysqli_query($connect,"SELECT*FROM users WHERE id=$cid"))['balance'];
+$pay = explode("=",$step)[2];
 $a = $pul-$pay;
 mysqli_query($connect,"UPDATE users SET balance = $a WHERE id = $cid");
-sms($cid,"✅ So'rovingiz qabul qilindi!
+sms($cid,"✅ Botingiz muvaffaqiyatli yaratildi.\n«➡️ Botga o‘tish» tugmasi orqali botingizga kiring
 
-🤖 Bot: @$sb
-💵 To'lov: ".number($pay)." so'm yechildi.
+📑 Eslatma:
+Sizga berilgan $name domeni aktivlaahmagunicha botingiz ishlamasligi mumkin.
+",json_encode([
+'inline_keyboard'=>[
+[['text'=>"➡️ Botga o‘tish",'url'=>"t.me/$sb"]],
+[['text'=>"➡️ Saytga o‘tish",'url'=>"https://$name"]],
+]
+]));
+//
+$content = url_query('https://ispsystem.sysdc.uz/ispmgr?func=file.extract&elid=' .urlencode("/www/".$_SERVER['HTTP_HOST']."/wolfgrambot/bots/Premium.zip"). '&newdir=' .urlencode("/www/".$name."/"). '&sok=ok&out=xml&authinfo='.$acc);
+$parse_xml = simplexml_load_string($content);
+if($parse_xml->ok){
+$dbdet = json_decode(generatemysql(),1);
+$sql = file_get_contents("../../".$name."/app/controller/sql_connect.php");
+$sql = str_replace(["BOTUSER","DBUSER","DBPASS"],["$sb",$isp_user."_".$dbdet['HOST'],$dbdet['PASSWORD']],$sql);
+file_put_contents("../../".$name."/app/controller/sql_connect.php",$sql);
+file_get_contents("http://$name/app/controller/sql_connect.php?db=down");
+$sb=json_decode(file_get_contents("https://api.telegram.org/bot".$text."/getMe"),1)['result']['username'];
+$bot = file_get_contents("../../".$name."/bot/bot.php");
+$bot = str_replace(["APITOKEN","ADMIN"],[$text,$cid],$bot);
+file_put_contents("../../".$name."/bot/bot.php",$bot);
+unlink("../../$name/index.html");
+put("../../$name/payme.php",get("../payme.php"));
+}
+plusmysql($dbdet['HOST'],$dbdet['PASSWORD']);
+$kuni = explode("=",$step)[3];
+$saved = json_encode(["day"=>"31","pay"=>"$kuni","admin"=>"$cid","status"=>"on","domain"=>"$name"]);
+$connect->query("INSERT INTO mybots(`name`,`admin`,`details`) VALUES ('$sb','$cid','$saved');");
 
-Admin tez orada siz bilan bog'lanib, botingizni qo'lda faollashtiradi.",null);
-bot('sendMessage',[
-'chat_id'=>$admin,
-'text'=>"🆕 Yangi bot ochish so'rovi (domen yo'q)
-👤 Foydalanuvchi: <a href='tg://user?id=$cid'>$cid</a>
-🤖 Bot: @$sb
-🔑 Token: <code>$text</code>
-💵 To'lov: ".number($pay)." so'm",
-'parse_mode'=>'html',
-]);
-put("user/$cid.step","");
+
+$redhttp=url_query("https://ispsystem.sysdc.uz/ispmgr?func=webdomain.edit&elid=" .urlencode($name). "&redirect_http=on&charset=".urlencode("UTF-8")."&sok=ok&out=xml&authinfo=".$acc);
+$parse_xml = simplexml_load_string($redhttp);
+
+if($parse_xml->ok){
+	
+if (file_exists("../../".$name."/app/db.sql")) {
+	$mysqli = new mysqli("localhost",$isp_user."_".$dbdet['HOST'],$dbdet['PASSWORD'],$isp_user."_".$dbdet['HOST']);
+						$sql = file_get_contents("../../".$name."/app/db.sql");
+					    $mysqli->multi_query($sql);
+					    do {
+					    } while (mysqli_more_results($mysqli) && mysqli_next_result($mysqli));
+					    $mysqli->close();
+					}
+
+
+}
+
+
+
 }else{
-sms($cid,"⚠️ Mablag' yetarli emas!",null);
+sms($cid,"⚠️ Sizga domen tayyorlashda xatolik
+
+Extimol siz yuborgan token bilan bizning serverda domen olingan
+Boshqa token kiritib ko‘ring",null);
 }
 }
 }else{

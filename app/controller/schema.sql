@@ -1,0 +1,144 @@
+-- ==========================================================================
+--  schema.sql
+-- --------------------------------------------------------------------------
+--  DIQQAT: Bu fayl asl paketda YO'Q edi. bot.php faylidagi barcha SQL
+--  so'rovlarni (SELECT/INSERT/UPDATE) diqqat bilan o'qib, ishlatilayotgan
+--  jadval va ustun nomlaridan KELIB CHIQIB tuzilgan — ya'ni bu "eng yaqin
+--  taxmin", sizning ASL (haqiqiy, oldin ishlatilgan) bazangiz emas.
+--
+--  QACHON ISHLATISH KERAK:
+--   - Agar bu botni Railway'da BIRINCHI MARTA, yangi/bo'sh MySQL bilan
+--     ishga tushirayotgan bo'lsangiz — shu faylni bir marta ishga tushiring.
+--   - Agar sizda bundan oldin ishlagan, jadvallari to'ldirilgan HAQIQIY
+--     bazangiz bor bo'lsa — BU FAYLNI ISHGA TUSHIRMANG, faqat shu bazaga
+--     ulaning (Environment Variables orqali). Aks holda mavjud
+--     ma'lumotlaringizni yo'qotib qo'yishingiz mumkin.
+--
+--  Ishga tushirish: Railway MySQL -> "Data" bo'limi -> Query -> shu faylni
+--  joylashtirib bajaring (yoki mysql client/phpMyAdmin orqali import qiling).
+-- ==========================================================================
+
+SET NAMES utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `users` (
+  `user_id` BIGINT NOT NULL,                -- ketma-ket tartib raqami (1,2,3...)
+  `id` BIGINT NOT NULL,                     -- Telegram chat_id (asosiy kalit)
+  `status` VARCHAR(20) NOT NULL DEFAULT 'active',   -- active / deactive
+  `balance` DECIMAL(15,2) NOT NULL DEFAULT 0,
+  `outing` DECIMAL(15,2) NOT NULL DEFAULT 0,        -- jami sarflangan summa
+  `api_key` VARCHAR(64) DEFAULT NULL,               -- foydalanuvchining ichki tokeni
+  `referal` VARCHAR(32) DEFAULT NULL,               -- shu foydalanuvchining o'z referal kodi
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `settings` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `start` TEXT DEFAULT NULL,           -- /start xabari matni
+  `kabinet` TEXT DEFAULT NULL,         -- shaxsiy kabinet matni
+  `orders` TEXT DEFAULT NULL,          -- buyurtmalar bo'limi matni
+  `payme_id` VARCHAR(64) DEFAULT NULL, -- Payme merchant/karta ID
+  `referal` VARCHAR(32) DEFAULT '0',   -- 1 ta taklif uchun beriladigan summa (base64'da saqlanadi)
+  `ref_status` VARCHAR(10) DEFAULT 'on',
+  `bonus` VARCHAR(32) DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- settings jadvalida kamida 1 ta qator bo'lishi SHART (bot.php shu qatorni
+-- SELECT * FROM settings LIMIT 1 uslubida o'qiydi):
+INSERT INTO `settings` (`start`,`kabinet`,`orders`,`referal`,`ref_status`,`bonus`)
+SELECT '👋 Xush kelibsiz!','👤 Shaxsiy kabinet','📦 Buyurtmalar', '0','on','0'
+WHERE NOT EXISTS (SELECT 1 FROM `settings`);
+
+CREATE TABLE IF NOT EXISTS `providers` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `api_url` VARCHAR(255) NOT NULL,   -- nakrutka (SMM) provayder API manzili
+  `api_key` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `categorys` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `category_name` VARCHAR(255) NOT NULL,
+  `category_status` VARCHAR(20) NOT NULL DEFAULT 'active',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `cates` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(255) NOT NULL,
+  `category_id` INT NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `services` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `service_status` VARCHAR(20) NOT NULL DEFAULT 'active',
+  `service_edit` VARCHAR(10) NOT NULL DEFAULT 'false',
+  `service_price` DECIMAL(15,4) NOT NULL DEFAULT 0,
+  `category_id` INT DEFAULT NULL,
+  `service_api` INT DEFAULT NULL,        -- providers.id ga bog'liq
+  `api_service` VARCHAR(64) DEFAULT NULL,-- provayderdagi xizmat ID'si
+  `api_currency` VARCHAR(10) DEFAULT NULL,
+  `service_type` VARCHAR(64) DEFAULT NULL,
+  `api_detail` TEXT DEFAULT NULL,
+  `service_name` VARCHAR(255) DEFAULT NULL,
+  `service_desc` TEXT DEFAULT NULL,
+  `service_min` INT DEFAULT 0,
+  `service_max` INT DEFAULT 0,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `myorder` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `order_id` VARCHAR(64) DEFAULT NULL,      -- ichki buyurtma raqami
+  `user_id` BIGINT NOT NULL,                -- users.id (telegram chat_id)
+  `retail` DECIMAL(15,2) NOT NULL DEFAULT 0,
+  `status` VARCHAR(32) NOT NULL DEFAULT 'pending',
+  `service` VARCHAR(255) DEFAULT NULL,
+  `order_create` DATETIME DEFAULT NULL,
+  `last_check` DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `orders` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `api_order` VARCHAR(64) DEFAULT NULL,   -- provayderdagi buyurtma ID'si
+  `order_id` VARCHAR(64) DEFAULT NULL,    -- myorder.order_id bilan bog'liq
+  `provider` INT DEFAULT NULL,            -- providers.id
+  `status` VARCHAR(32) NOT NULL DEFAULT 'pending',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `percent` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `percent` DECIMAL(6,2) NOT NULL DEFAULT 0, -- narxlarga qo'shiladigan foiz
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `percent` (`percent`)
+SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM `percent`);
+
+CREATE TABLE IF NOT EXISTS `mybots` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(255) DEFAULT NULL,
+  `admin` BIGINT DEFAULT NULL,
+  `details` TEXT DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `send` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `time1` VARCHAR(20) DEFAULT NULL,
+  `time2` VARCHAR(20) DEFAULT NULL,
+  `time3` VARCHAR(20) DEFAULT NULL,
+  `time4` VARCHAR(20) DEFAULT NULL,
+  `time5` VARCHAR(20) DEFAULT NULL,
+  `start_id` BIGINT DEFAULT NULL,
+  `stop_id` BIGINT DEFAULT NULL,
+  `admin_id` BIGINT DEFAULT NULL,
+  `message_id` BIGINT DEFAULT NULL,
+  `reply_markup` TEXT DEFAULT NULL,
+  `step` VARCHAR(64) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
