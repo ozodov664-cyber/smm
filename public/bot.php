@@ -293,80 +293,81 @@ return true;
 
 
 $update = json_decode(file_get_contents('php://input'));
+if(!is_object($update)){ $update = new stdClass(); }
 $message = $update->message ?? $update->edited_message ?? new stdClass();
-$edituz = $update->callback_query->message->from->id;
-$mesuz = $update->callback_query->message->message_id;
-$cid = $message->chat->id;
-$cidtyp = $message->chat->type;
-$miid = $message->message_id;
-$name = $message->chat->first_name;
-$user1 = $message->from->username;
-$tx = $message->text;
-$callback = $update->callback_query;
-$mmid = $callback->inline_message_id;
-$mes = $callback->message;
-$mid = $mes->message_id;
-$cmtx = $mes->text;
-$mmid = $callback->inline_message_id;
-$idd = $callback->message->chat->id;
-$cbid = $callback->from->id;
-$cbuser = $callback->from->username;
-$data = $callback->data;
-$ida = $callback->id;
-$cqid = $update->callback_query->id;
+$edituz = $update->callback_query?->message?->from?->id;
+$mesuz = $update->callback_query?->message?->message_id;
+$cid = $message->chat?->id ?? 0;
+$cidtyp = $message->chat?->type ?? '';
+$miid = $message->message_id ?? null;
+$name = $message->chat?->first_name ?? '';
+$user1 = $message->from?->username ?? '';
+$tx = $message->text ?? '';
+$callback = $update->callback_query ?? null;
+$mmid = $callback?->inline_message_id;
+$mes = $callback?->message ?? new stdClass();
+$mid = $mes->message_id ?? null;
+$cmtx = $mes->text ?? '';
+$mmid = $callback?->inline_message_id;
+$idd = $callback?->message?->chat?->id ?? 0;
+$cbid = $callback?->from?->id ?? 0;
+$cbuser = $callback?->from?->username ?? '';
+$data = $callback?->data ?? '';
+$ida = $callback?->id;
+$cqid = $update->callback_query?->id;
 $qid=$cqid;
-$cbins = $callback->chat_instance;
-$cbchtyp = $callback->message->chat->type;
+$cbins = $callback?->chat_instance;
+$cbchtyp = $callback?->message?->chat?->type ?? '';
 // ESKI QATOR OLIB TASHLANDI: "$step = file_get_contents("step/$from_id.step");"
 // Sabab: $from_id bu yerda hali aniqlanmagan edi (u pastda, ~287-qatorda aniqlanadi),
 // shu bois bu chaqiruv doim "step/.step" faylini qidirib, PHP Warning chiqarardi.
 // Haqiqiy $step qiymati keyinroq "$step = get("user/$cid.step");" qatorida to'g'ri o'qiladi.
 $msgs = json_decode(@file_get_contents('msgs.json'), true) ?: [];
-$data = $update->callback_query->data;
-$type = $message->chat->type;
-$text = $message->text;
-$sd = $message->text;
-$uid= $message->from->id;
-$gname = $message->chat->title;
-$left = $message->left_chat_member;
-$new = $message->new_chat_member;
-$name = $message->from->first_name;
-$bio = $message->from->about;
-$repid = $message->reply_to_message->from->id;
-$repname = $message->reply_to_message->from->first_name;
-$newid = $message->new_chat_member->id;
-$leftid = $message->left_chat_member->id;
+$data = $update->callback_query?->data ?? '';
+$type = $message->chat?->type ?? '';
+$text = $message->text ?? '';
+$sd = $message->text ?? '';
+$uid= $message->from?->id ?? 0;
+$gname = $message->chat?->title ?? '';
+$left = $message->left_chat_member ?? null;
+$new = $message->new_chat_member ?? null;
+$name = $message->from?->first_name ?? '';
+$bio = $message->from?->about ?? '';
+$repid = $message->reply_to_message?->from?->id;
+$repname = $message->reply_to_message?->from?->first_name ?? '';
+$newid = $message->new_chat_member?->id;
+$leftid = $message->left_chat_member?->id;
 
-$botdel = $update->my_chat_member->new_chat_member;
-$botdel_id = $update->my_chat_member->from->id;
-$userstatus = $botdel->status;
+$botdel = $update->my_chat_member?->new_chat_member ?? null;
+$botdel_id = $update->my_chat_member?->from?->id;
+$userstatus = $botdel?->status ?? '';
 
-$newname = $message->new_chat_member->first_name;
-$leftname = $message->left_chat_member->first_name;
-$username = $message->from->username;
-$cmid = $update->callback_query->message->message_id;
-$cusername = $message->chat->username;
-$repmid = $message->reply_to_message->message_id; 
-$ccid = $update->callback_query->message->chat->id;
-$cuid = $update->callback_query->message->from->id;
-$from_id = $message->from->id;
-$chat_id = $update->callback_query->message->chat->id;
-$message_id = $update->callback_query->message->message_id;
-$call = $update->callback_query;
-$mes = $call->message;
-$data = $call->data;
-$qid = $call->id;
-$callbackdata = $update->callback_query->data;
-$callcid = $mes->chat->id;
-$callmid = $mes->message_id;
-$callfrid = $call->from->id;
-$calluser = $mes->chat->username;
-$callfname = $call->from->first_name;
-$photo = $message->photo;
-$gif = $message->animation;
-$video = $message->video;
-$music = $message->audio;
-$voice = $message->voice;
+$newname = $message->new_chat_member?->first_name ?? '';
+$leftname = $message->left_chat_member?->first_name ?? '';
+$username = $message->from?->username ?? '';
+$cmid = $update->callback_query?->message?->message_id;
+$cusername = $message->chat?->username ?? '';
+$repmid = $message->reply_to_message?->message_id;
+$ccid = $update->callback_query?->message?->chat?->id ?? 0;
+$cuid = $update->callback_query?->message?->from?->id ?? 0;
+$from_id = $message->from?->id ?? 0;
+$chat_id = $update->callback_query?->message?->chat?->id ?? 0;
+$message_id = $update->callback_query?->message?->message_id;
+$call = $update->callback_query ?? null;
+$mes = $call?->message ?? new stdClass();
+$data = $call?->data ?? '';
+$qid = $call?->id;
+$callbackdata = $update->callback_query?->data ?? '';
+$callcid = $mes->chat?->id ?? 0;
+$callmid = $mes->message_id ?? null;
+$callfrid = $call?->from?->id ?? 0;
+$calluser = $mes->chat?->username ?? '';
+$callfname = $call?->from?->first_name ?? '';
+$photo = $message->photo ?? null;
+$gif = $message->animation ?? null;
+$video = $message->video ?? null;
+$music = $message->audio ?? null;
+$voice = $message->voice ?? null;
 $sticker = $message->sticker ?? null;
 $document = $message->document ?? null;
 $for = $message->forward_from ?? null;
@@ -431,8 +432,7 @@ sms($cid.$chat_id,"🥶 Panel vaqtincha muzlatilgan",null);
 }
 
 $resu = mysqli_query($connect,"SELECT * FROM `settings`");
-if(!$resu){ error_log("[bot.php] SETTINGS QUERY ERROR: ".mysqli_error($connect)); }
-$setting = $resu ? mysqli_fetch_assoc($resu) : [];
+$setting = mysqli_fetch_assoc($resu);
 
 if(!is_dir("user")) mkdir("user", 0755, true);
 if(!is_dir("set")) mkdir("set", 0755, true);
@@ -795,7 +795,7 @@ unlink("user/$cid.step");
 $result = mysqli_query($connect, "SELECT * FROM `send`"); 
 $row = mysqli_fetch_assoc($result);
 $sendstep = $row['step'];
-if($_GET['update']=="send"){
+if((isset($_GET['update']) ? $_GET['update'] : null)=="send"){
 $row1 = $row['time1'];
 $row2 = $row['time2'];
 $row3 = $row['time3'];
@@ -4929,7 +4929,7 @@ exit;
 }
 }
 
-if($_GET['update']=="status"){
+if((isset($_GET['update']) ? $_GET['update'] : null)=="status"){
 echo json_encode(["status"=>true,"cron"=>"Orders status"]);
 
 $mysql=mysqli_query($connect,"SELECT * FROM `orders`");
