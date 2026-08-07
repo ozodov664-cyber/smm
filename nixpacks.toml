@@ -2,9 +2,7 @@
 #
 # DIQQAT: bu yerdagi har bir "php82Extensions.X" nixpkgs'da HAQIQATDA mavjud
 # bo'lgan attribut nomi bo'lishi SHART. Noto'g'ri/mavjud bo'lmagan nom butun
-# build'ni "error: attribute 'X' missing" bilan yiqitadi (avval "json" bilan
-# xuddi shunday bo'lgan edi — PHP'da json 8.0'dan beri core'ga kiritilgan,
-# nixpkgs'da alohida extension sifatida yo'q, shuning uchun olib tashlandi).
+# build'ni "error: attribute 'X' missing" bilan yiqitadi.
 #
 # bot.php va sql_connect.php qaysi extension'lardan foydalanishi tekshirilgan:
 #   - mysqli        -> sql_connect.php, barcha mysqli_* chaqiruvlar
@@ -12,7 +10,7 @@
 #   - mbstring      -> mb_stripos, mb_strpos, mb_convert_encoding
 #   - simplexml     -> simplexml_load_string (nomer/SMS API javobini o'qishda)
 # (json, session, ctype, filter kabi kengaytmalar PHP 8.2'da core'ga
-# kiritilgan — ularni alohida qo'shish kerak emas va bu build'da xatoga olib keladi.)
+# kiritilgan — ularni alohida qo'shish shart emas va bu build'da xatoga olib keladi.)
 [phases.setup]
 nixPkgs = [
   "php82",
@@ -21,6 +19,18 @@ nixPkgs = [
   "php82Extensions.mbstring",
   "php82Extensions.simplexml"
 ]
+
+# MUHIM: loyihada composer.json UMUMAN YO'Q (tashqi PHP kutubxona ishlatilmagan,
+# barcha funksiyalar mysqli/curl/mbstring/simplexml kabi tayyor extensionlar
+# orqali ishlaydi). Shunga qaramay Nixpacks PHP loyihasini ko'rgach avtomatik
+# ravishda "composer install --ignore-platform-reqs" buyrug'ini ishga
+# tushirishga harakat qiladi — composer esa yuqoridagi nixPkgs ro'yxatida yo'q,
+# shuning uchun "composer: command not found" bilan BUILD FAILED bo'lardi.
+#
+# Yechim: install bosqichini butunlay bo'sh qilib qo'yamiz, shunda composer
+# umuman chaqirilmaydi.
+[phases.install]
+cmds = []
 
 [start]
 cmd = "php -S 0.0.0.0:$PORT -t public"
