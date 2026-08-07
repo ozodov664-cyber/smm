@@ -431,7 +431,8 @@ sms($cid.$chat_id,"🥶 Panel vaqtincha muzlatilgan",null);
 }
 
 $resu = mysqli_query($connect,"SELECT * FROM `settings`");
-$setting = mysqli_fetch_assoc($resu);
+if(!$resu){ error_log("[bot.php] SETTINGS QUERY ERROR: ".mysqli_error($connect)); }
+$setting = $resu ? mysqli_fetch_assoc($resu) : [];
 
 if(!is_dir("user")) mkdir("user", 0755, true);
 if(!is_dir("set")) mkdir("set", 0755, true);
