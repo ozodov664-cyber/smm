@@ -293,7 +293,7 @@ return true;
 
 
 $update = json_decode(file_get_contents('php://input'));
-$message = $update->message;
+$message = $update->message ?? $update->edited_message ?? new stdClass();
 $edituz = $update->callback_query->message->from->id;
 $mesuz = $update->callback_query->message->message_id;
 $cid = $message->chat->id;
@@ -367,15 +367,15 @@ $gif = $message->animation;
 $video = $message->video;
 $music = $message->audio;
 $voice = $message->voice;
-$sticker = $message->sticker;
-$document = $message->document;
-$for = $message->forward_from;
-$for_id=$for->id;
-$contact = $message->contact;
-$nomer_id = $contact->user_id;
-$nomer_user = $contact->username;
-$nomet_name = $contact->first_name;
-$nomer_ph = $contact->phone_number;
+$sticker = $message->sticker ?? null;
+$document = $message->document ?? null;
+$for = $message->forward_from ?? null;
+$for_id = $for->id ?? null;
+$contact = $message->contact ?? null;
+$nomer_id = $contact->user_id ?? null;
+$nomer_user = $contact->username ?? null;
+$nomet_name = $contact->first_name ?? null;
+$nomer_ph = $contact->phone_number ?? null;
 $cid2=$chat_id;
 $mid2=$message_id;
 $sana=date("d/m/Y | H:i");
@@ -414,10 +414,11 @@ $result = mysqli_query($connect, $sql);
 }
 
 
-if(isset($update)) {
-$result = mysqli_query($connect,"SELECT * FROM users WHERE id = $cid$chat_id");
-$rew = mysqli_fetch_assoc($result);
-if($rew['status']=="deactive"){
+$active_uid = $cid ?: $chat_id;
+if(isset($update) && $active_uid){
+$result = mysqli_query($connect,"SELECT * FROM users WHERE id = $active_uid");
+$rew = $result ? mysqli_fetch_assoc($result) : null;
+if($rew && $rew['status']=="deactive"){
 exit();
 }
 }
