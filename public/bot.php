@@ -34,6 +34,11 @@ set_exception_handler(function($e){
     if(!headers_sent()) http_response_code(200);
 });
 set_error_handler(function($errno,$errstr,$errfile,$errline){
+    // "@" bilan bostirilgan xatolarni (masalan @file_get_contents(...)) log'ga yozmaymiz —
+    // aks holda ataylab bostirilgan warning'lar ham loglarda "xato" bo'lib ko'rinaveradi.
+    if(!(error_reporting() & $errno)){
+        return true;
+    }
     error_log("[bot.php] PHP xato [$errno]: $errstr in $errfile:$errline");
     return true;
 }, E_WARNING | E_NOTICE | E_DEPRECATED | E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED);
@@ -330,7 +335,6 @@ $cbchtyp = $callback?->message?->chat?->type ?? '';
 // Sabab: $from_id bu yerda hali aniqlanmagan edi (u pastda, ~287-qatorda aniqlanadi),
 // shu bois bu chaqiruv doim "step/.step" faylini qidirib, PHP Warning chiqarardi.
 // Haqiqiy $step qiymati keyinroq "$step = get("user/$cid.step");" qatorida to'g'ri o'qiladi.
-$msgs = json_decode(@file_get_contents('msgs.json'), true) ?: [];
 $type = $message->chat?->type ?? '';
 $text = $message->text ?? '';
 $sd = $message->text ?? '';
