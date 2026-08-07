@@ -45,9 +45,20 @@ CREATE TABLE IF NOT EXISTS `settings` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- settings jadvalida kamida 1 ta qator bo'lishi SHART (bot.php shu qatorni
--- SELECT * FROM settings LIMIT 1 uslubida o'qiydi):
+-- SELECT * FROM settings LIMIT 1 uslubida o'qiydi).
+--
+-- MUHIM: bot.php `start`, `kabinet`, `orders` va `referal` ustunlarini HAR
+-- DOIM base64 formatida o'qiydi (enc("decode", $setting[...]) orqali —
+-- admin panel orqali matn saqlanganda ham enc("encode", ...) bilan
+-- base64'ga o'giriladi). Shuning uchun standart qiymatlar ham shu yerda
+-- oldindan base64'ga o'girib qo'yilgan (aks holda /start va boshqa
+-- bo'limlar bo'sh/yaroqsiz matn yuborishga urinib, JAVOB QAYTARMAYDI):
+--   'start'   base64 <- '👋 Xush kelibsiz!'
+--   'kabinet' base64 <- '👤 Shaxsiy kabinet'
+--   'orders'  base64 <- '📦 Buyurtmalar'
+--   'referal' base64 <- '0'
 INSERT INTO `settings` (`start`,`kabinet`,`orders`,`referal`,`ref_status`,`bonus`)
-SELECT '👋 Xush kelibsiz!','👤 Shaxsiy kabinet','📦 Buyurtmalar', '0','on','0'
+SELECT '8J+RiyBYdXNoIGtlbGlic2l6IQ==','8J+RpCBTaGF4c2l5IGthYmluZXQ=','8J+TpiBCdXl1cnRtYWxhcg==','MA==','on','0'
 WHERE NOT EXISTS (SELECT 1 FROM `settings`);
 
 CREATE TABLE IF NOT EXISTS `providers` (

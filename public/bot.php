@@ -145,9 +145,16 @@ function bot($method,$datas=[]){
     curl_setopt($ch,CURLOPT_POSTFIELDS,$datas);
     $res = curl_exec($ch);
     if(curl_error($ch)){
-        var_dump(curl_error($ch));
+        error_log("[bot.php] Telegram API'ga ulanishda xato ($method): ".curl_error($ch));
     }else{
-        return json_decode($res);
+        $decoded = json_decode($res);
+        // Telegram "ok:false" qaytarganda (masalan noto'g'ri BOT_TOKEN, bloklangan
+        // foydalanuvchi, bo'sh/yaroqsiz matn va h.k.) buni Railway loglariga yozamiz —
+        // aks holda bunday xatolar hech qanday iz qoldirmay "sokin" yo'qolib ketaveradi.
+        if(is_object($decoded) && isset($decoded->ok) && $decoded->ok === false){
+            error_log("[bot.php] Telegram API xatosi ($method): ".($decoded->description ?? 'noma\'lum xato'));
+        }
+        return $decoded;
     }
 }
 
