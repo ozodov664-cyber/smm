@@ -60,6 +60,8 @@ $admin   = getenv('ADMIN_ID') ?: 'id';
 // ozgartirilishi mumkin. set/ papkasidagi fayllar mavjud bolmasa, Environment
 // Variables (SIMKEY, SMS_API_URL) dagi standart qiymatlar ishlatiladi.
 if(!is_dir(__DIR__."/../set")) @mkdir(__DIR__."/../set", 0755, true);
+if(!is_dir(__DIR__."/../user")) @mkdir(__DIR__."/../user", 0755, true);
+if(!is_file(__DIR__."/../set/channel")) @file_put_contents(__DIR__."/../set/channel", "");
 $simkey_file  = __DIR__."/../set/simkey.txt";
 $sms_url_file = __DIR__."/../set/sms_api_url.txt";
 
@@ -235,7 +237,7 @@ function referal($hi){
 
 
 function get($h){
-return file_get_contents($h);
+return is_file($h) ? @file_get_contents($h) : false;
 }
 
 function put($h,$r){
@@ -297,7 +299,7 @@ if(!is_object($update)){ $update = new stdClass(); }
 $message = $update->message ?? $update->edited_message ?? new stdClass();
 $edituz = $update->callback_query?->message?->from?->id;
 $mesuz = $update->callback_query?->message?->message_id;
-$cid = $message->chat?->id ?? 0;
+$cid = $message->chat?->id ?? $update->callback_query?->message?->chat?->id ?? $update->callback_query?->from?->id ?? 0;
 $cidtyp = $message->chat?->type ?? '';
 $miid = $message->message_id ?? null;
 $name = $message->chat?->first_name ?? '';
@@ -793,8 +795,8 @@ unlink("user/$cid.step");
 }
 
 $result = mysqli_query($connect, "SELECT * FROM `send`"); 
-$row = mysqli_fetch_assoc($result);
-$sendstep = $row['step'];
+$row = mysqli_fetch_assoc($result) ?: [];
+$sendstep = $row['step'] ?? null;
 if((isset($_GET['update']) ? $_GET['update'] : null)=="send"){
 $row1 = $row['time1'];
 $row2 = $row['time2'];
