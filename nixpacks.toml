@@ -1,5 +1,26 @@
+# Railway (Nixpacks) uchun PHP build sozlamalari.
+#
+# DIQQAT: bu yerdagi har bir "php82Extensions.X" nixpkgs'da HAQIQATDA mavjud
+# bo'lgan attribut nomi bo'lishi SHART. Noto'g'ri/mavjud bo'lmagan nom butun
+# build'ni "error: attribute 'X' missing" bilan yiqitadi (avval "json" bilan
+# xuddi shunday bo'lgan edi — PHP'da json 8.0'dan beri core'ga kiritilgan,
+# nixpkgs'da alohida extension sifatida yo'q, shuning uchun olib tashlandi).
+#
+# bot.php va sql_connect.php qaysi extension'lardan foydalanishi tekshirilgan:
+#   - mysqli        -> sql_connect.php, barcha mysqli_* chaqiruvlar
+#   - curl          -> bot() funksiyasi (Telegram Bot API'ga so'rov)
+#   - mbstring      -> mb_stripos, mb_strpos, mb_convert_encoding
+#   - simplexml     -> simplexml_load_string (nomer/SMS API javobini o'qishda)
+# (json, session, ctype, filter kabi kengaytmalar PHP 8.2'da core'ga
+# kiritilgan — ularni alohida qo'shish kerak emas va bu build'da xatoga olib keladi.)
 [phases.setup]
-nixPkgs = ["php82", "php82Extensions.mysqli", "php82Extensions.curl", "php82Extensions.mbstring", "php82Extensions.json"]
+nixPkgs = [
+  "php82",
+  "php82Extensions.mysqli",
+  "php82Extensions.curl",
+  "php82Extensions.mbstring",
+  "php82Extensions.simplexml"
+]
 
 [start]
 cmd = "php -S 0.0.0.0:$PORT -t public"
