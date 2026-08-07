@@ -297,26 +297,32 @@ return true;
 $update = json_decode(file_get_contents('php://input'));
 if(!is_object($update)){ $update = new stdClass(); }
 $message = $update->message ?? $update->edited_message ?? new stdClass();
-$edituz = $update->callback_query?->message?->from?->id;
-$mesuz = $update->callback_query?->message?->message_id;
-$cid = $message->chat?->id ?? $update->callback_query?->message?->chat?->id ?? $update->callback_query?->from?->id ?? 0;
+$callback = $update->callback_query ?? null;
+$mychatmember = $update->my_chat_member ?? null;
+$left = $message->left_chat_member ?? null;
+$new = $message->new_chat_member ?? null;
+$reply = $message->reply_to_message ?? null;
+$for = $message->forward_from ?? null;
+$contact = $message->contact ?? null;
+
+$edituz = $callback?->message?->from?->id;
+$mesuz = $callback?->message?->message_id;
+$cid = $message->chat?->id ?? $callback?->message?->chat?->id ?? $callback?->from?->id ?? 0;
 $cidtyp = $message->chat?->type ?? '';
 $miid = $message->message_id ?? null;
 $name = $message->chat?->first_name ?? '';
 $user1 = $message->from?->username ?? '';
 $tx = $message->text ?? '';
-$callback = $update->callback_query ?? null;
 $mmid = $callback?->inline_message_id;
 $mes = $callback?->message ?? new stdClass();
 $mid = $mes->message_id ?? null;
 $cmtx = $mes->text ?? '';
-$mmid = $callback?->inline_message_id;
 $idd = $callback?->message?->chat?->id ?? 0;
 $cbid = $callback?->from?->id ?? 0;
 $cbuser = $callback?->from?->username ?? '';
 $data = $callback?->data ?? '';
 $ida = $callback?->id;
-$cqid = $update->callback_query?->id;
+$cqid = $callback?->id;
 $qid=$cqid;
 $cbins = $callback?->chat_instance;
 $cbchtyp = $callback?->message?->chat?->type ?? '';
@@ -325,41 +331,38 @@ $cbchtyp = $callback?->message?->chat?->type ?? '';
 // shu bois bu chaqiruv doim "step/.step" faylini qidirib, PHP Warning chiqarardi.
 // Haqiqiy $step qiymati keyinroq "$step = get("user/$cid.step");" qatorida to'g'ri o'qiladi.
 $msgs = json_decode(@file_get_contents('msgs.json'), true) ?: [];
-$data = $update->callback_query?->data ?? '';
 $type = $message->chat?->type ?? '';
 $text = $message->text ?? '';
 $sd = $message->text ?? '';
 $uid= $message->from?->id ?? 0;
 $gname = $message->chat?->title ?? '';
-$left = $message->left_chat_member ?? null;
-$new = $message->new_chat_member ?? null;
 $name = $message->from?->first_name ?? '';
 $bio = $message->from?->about ?? '';
-$repid = $message->reply_to_message?->from?->id;
-$repname = $message->reply_to_message?->from?->first_name ?? '';
-$newid = $message->new_chat_member?->id;
-$leftid = $message->left_chat_member?->id;
+$repid = $reply?->from?->id;
+$repname = $reply?->from?->first_name ?? '';
+$newid = $new?->id;
+$leftid = $left?->id;
 
-$botdel = $update->my_chat_member?->new_chat_member ?? null;
-$botdel_id = $update->my_chat_member?->from?->id;
+$botdel = $mychatmember?->new_chat_member ?? null;
+$botdel_id = $mychatmember?->from?->id;
 $userstatus = $botdel?->status ?? '';
 
-$newname = $message->new_chat_member?->first_name ?? '';
-$leftname = $message->left_chat_member?->first_name ?? '';
+$newname = $new?->first_name ?? '';
+$leftname = $left?->first_name ?? '';
 $username = $message->from?->username ?? '';
-$cmid = $update->callback_query?->message?->message_id;
+$cmid = $callback?->message?->message_id;
 $cusername = $message->chat?->username ?? '';
-$repmid = $message->reply_to_message?->message_id;
-$ccid = $update->callback_query?->message?->chat?->id ?? 0;
-$cuid = $update->callback_query?->message?->from?->id ?? 0;
+$repmid = $reply?->message_id;
+$ccid = $callback?->message?->chat?->id ?? 0;
+$cuid = $callback?->message?->from?->id ?? 0;
 $from_id = $message->from?->id ?? 0;
-$chat_id = $update->callback_query?->message?->chat?->id ?? 0;
-$message_id = $update->callback_query?->message?->message_id;
-$call = $update->callback_query ?? null;
+$chat_id = $callback?->message?->chat?->id ?? 0;
+$message_id = $callback?->message?->message_id;
+$call = $callback;
 $mes = $call?->message ?? new stdClass();
 $data = $call?->data ?? '';
 $qid = $call?->id;
-$callbackdata = $update->callback_query?->data ?? '';
+$callbackdata = $callback?->data ?? '';
 $callcid = $mes->chat?->id ?? 0;
 $callmid = $mes->message_id ?? null;
 $callfrid = $call?->from?->id ?? 0;
@@ -372,9 +375,7 @@ $music = $message->audio ?? null;
 $voice = $message->voice ?? null;
 $sticker = $message->sticker ?? null;
 $document = $message->document ?? null;
-$for = $message->forward_from ?? null;
 $for_id = $for->id ?? null;
-$contact = $message->contact ?? null;
 $nomer_id = $contact->user_id ?? null;
 $nomer_user = $contact->username ?? null;
 $nomet_name = $contact->first_name ?? null;
@@ -3108,7 +3109,7 @@ put("user/$cid.step","");
 
 }
 
-$saved = file_get_contents("user/us.id");
+$saved = is_file("user/us.id") ? @file_get_contents("user/us.id") : '';
 
 if($text == "👤 Foydalanuvchini boshqarish"){
 if($cid == $admin){
