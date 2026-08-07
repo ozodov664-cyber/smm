@@ -1,0 +1,11 @@
+{
+    "name": "turkiston-coders/smm-bot",
+    "description": "Telegram SMM va nomer olish boti",
+    "require": {
+        "php": ">=8.1",
+        "ext-mysqli": "*",
+        "ext-curl": "*",
+        "ext-mbstring": "*",
+        "ext-json": "*"
+    }
+}
