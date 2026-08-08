@@ -3877,20 +3877,23 @@ if($ban == "deactive"){
 	$bans = "🔕 Bandan olish";
 }
 
-bot('SendMessage',[
+// FIX: kod avval "Qidirilmoqda..." xabarini yuborib, keyin uni
+// TAXMIN qilingan message_id ($mid + 1, ya'ni "adminning oxirgi xabari + 1")
+// bilan tahrirlashga urinardi. Bu taxmin har doim to'g'ri kelavermaydi
+// (masalan orada boshqa xabar yuborilgan bo'lsa) - shunday holatda
+// editMessageText Telegram'dan xato oladi, u esa jim yutib yuboriladi va
+// "Qidirilmoqda..." xabari ABADIY shu holatda qotib qoladi (natija hech
+// qachon ko'rsatilmaydi). Endi haqiqiy message_id yuborilgan xabarning
+// javobidan olinadi - bu har doim to'g'ri ishlaydi.
+$qm = bot('SendMessage',[
 'chat_id'=>$cid,
 'text'=>"<b>Qidirilmoqda...</b>",
 'parse_mode'=>'html',
 ]);
-bot('editMessageText',[
-        'chat_id'=>$cid,
-        'message_id'=>$mid + 1,
-        'text'=>"<b>Qidirilmoqda...</b>",
-       'parse_mode'=>'html',
-]);
+$qmid = $qm->result->message_id ?? ($mid + 1);
 bot('editMessageText',[
       'chat_id'=>$cid,
-     'message_id'=>$mid + 1,
+     'message_id'=>$qmid,
 'text'=>"<b>Foydalanuvchi topildi!
 
 ID:</b> <a href='tg://user?id=$idi'>$text</a>

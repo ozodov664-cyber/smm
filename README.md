@@ -66,7 +66,14 @@ Shuningdek, shu bloklarning birida aniqlanmagan `$my` o'zgaruvchisi ishlatilgan 
 **Tuzatildi:** Qidiruv endi to'g'ri `id` ustunidan (haqiqiy Telegram ID) amalga oshiriladi. (Referal tizimidagi shunga o'xshash qidiruv tekshirildi — u ataylab `user_id` bo'yicha ishlaydi va to'g'ri, tegilmadi.)
 
 
-## 2. Yana uchta jiddiy xato topildi va TUZATILDI (yangi tekshiruv)
+## 0.4 v31 — "Qidirilmoqda..." abadiy qotib qolishi tuzatildi
+
+**Muammo:** Admin foydalanuvchi ID'sini kiritganda "Qidirilmoqda..." xabari chiqib, keyin hech qachon natija bilan almashtirilmasdi (abadiy shu holatda qolaverardi).
+
+**Sabab:** Kod "Qidirilmoqda..." xabarini yuborgandan so'ng, uni **taxmin qilingan** `message_id` (adminning oxirgi xabari + 1) bilan tahrirlashga urinardi — bu shunchaki taxmin edi, haqiqiy ID emas. Taxmin xato chiqsa (masalan orada boshqa xabar yuborilgan bo'lsa), Telegram tahrirlashni rad etardi va bu xato jim yutib yuborilardi — natijada "Qidirilmoqda..." xabari hech qachon yangilanmay qolardi.
+
+**Tuzatildi:** Endi "Qidirilmoqda..." xabari yuborilganda Telegram'ning o'zi qaytargan **haqiqiy** `message_id` saqlab qolinadi va aynan shu ID orqali tahrirlanadi — taxmin qilish shart emas.
+
 
 ### b) [TUZATILDI] Ikki marta takrorlangan "botopen=" / "mydomen=" callback ishlovchisi
 Botda ikkita narx bo'limi bor edi (45 000 so'm va 30 000 so'm), lekin ikkalasi ham bir xil `callback_data` prefiksidan (`botopen=`, keyin `mydomen=`) foydalangani sabab, foydalanuvchi qaysi tugmani bosishidan qat'i nazar **ikkala ishlovchi blok ham ketma-ket ishga tushar edi** — bu takroriy xabar yuborilishiga (va Telegram API'ga keraksiz qo'shimcha so'rovlarga) olib kelardi. Endi har bir blok faqat o'ziga tegishli narx qiymati (`=45000=` yoki `=30000=`) callback_data ichida bo'lgandagina ishga tushadi.
