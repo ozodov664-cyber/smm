@@ -3385,6 +3385,7 @@ $new_arr = [];
 $k = [];
 $asub = mysqli_query($connect,"SELECT * FROM subcates WHERE cate_id = $pw");
 $csub = ($asub !== false) ? mysqli_num_rows($asub) : 0;
+error_log("[bot.php] DEBUG adds-: pw(cate_id)='$pw' csub(topilgan pastki bolim soni)=".$csub." mysqli_error=".mysqli_error($connect));
 while($asub !== false && ($s = mysqli_fetch_assoc($asub))){
 if(!in_array(enc("decode",$s['name']), $new_arr)){
 $new_arr[] = enc("decode",$s['name']);
