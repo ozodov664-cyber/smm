@@ -286,6 +286,31 @@ function put($h,$r){
 file_put_contents($h,$r);
 }
 
+// YANGI: provayder (SMM panel) API'siga tashqi (https://...) so'rov yuborish
+// uchun funksiya. Avval bu o'rinlarda xato ravishda get() ishlatilgan edi —
+// get() FAQAT lokal fayllarni o'qiydi (is_file() URL uchun doim FALSE
+// qaytaradi), shu sabab provayderdan xizmatlar ro'yxatini olish, buyurtma
+// joylashtirish (action=add) va buyurtma holatini tekshirish (action=status)
+// HECH QACHON ishlamas edi — natijada "Yangi xizmat qo'shish" jarayonida
+// Xizmat IDsi kiritilgach botning "javob bermay qolishi" va foydalanuvchi
+// buyurtma berganda xizmatning yakunlanmasligi shundan kelib chiqqan.
+function api_get($url){
+    $ch = curl_init();
+    curl_setopt($ch,CURLOPT_URL,$url);
+    curl_setopt($ch,CURLOPT_RETURNTRANSFER,true);
+    curl_setopt($ch,CURLOPT_SSL_VERIFYPEER,false);
+    curl_setopt($ch,CURLOPT_CONNECTTIMEOUT,10);
+    curl_setopt($ch,CURLOPT_TIMEOUT,20);
+    $res = curl_exec($ch);
+    if(curl_error($ch)){
+        error_log("[bot.php] Provayder API'ga ulanishda xato: ".curl_error($ch)." URL: ".$url);
+        curl_close($ch);
+        return '';
+    }
+    curl_close($ch);
+    return $res;
+}
+
 
 
 
@@ -520,7 +545,7 @@ $stepc = get("user/$chat_id.step");
 // darhol tozalanadi (fayldan HAM, joriy $step o'zgaruvchisidan HAM) —
 // shunda pastdagi step tekshiruvlari ishlamay qoladi va foydalanuvchi
 // to'g'ridan-to'g'ri tegishli menyuga qaytadi.
-$orqaga_tugmalari = ["➡️ Orqaga","⏪ Orqaga","⏮️ Orqaga","🔙 Orqaga","⬅️ Orqaga","🗄️ Boshqaruv"];
+$orqaga_tugmalari = ["➡️ Orqaga","⏪ Orqaga","⏮️ Orqaga","🔙 Orqaga","⬅️ Orqaga","🗄️ Boshqaruv","🏠 Bosh sahifa"];
 if($step && in_array($text, $orqaga_tugmalari, true)){
     @unlink("user/$cid.step");
     $step = "";
@@ -985,7 +1010,7 @@ $panel2=json_encode([
 [['text'=>"📊 Buyurtmani tekshirish"]],
 [['text'=>"📎 Majburiy obunalar"],['text'=>"🔑 API Sozlamalari"]],
 [['text'=>"⚙️ Boshqa sozlamalar"]],
-[['text'=>"🗄️ Boshqaruv"]],
+[['text'=>"🏠 Bosh sahifa"]],
 ]]);
 
 // FIX: "⏪ Orqaga" tugmasi $panel klaviaturasida (Boshqaruv paneli ichida)
@@ -1370,7 +1395,7 @@ $m = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM `providers` WHERE i
 $surl = $m['api_url'];
 $skey =$m['api_key'];
 
-$api = json_decode(get($surl."?key=$skey&action=status&order=".$stati['api_order'].""), 1);
+$api = json_decode(api_get($surl."?key=$skey&action=status&order=".$stati['api_order'].""), 1);
 $prtxt=str_replace(["/api/adapter/default/index","/api/v1","/api/v2","https://"],["","","",""],$c['api_url']);
 sms($cid,"
 *️⃣ Server: $prtxt
@@ -1723,6 +1748,17 @@ if($cid==$admin or $chat_id==$admin){
 $m=$menu_p;
 }else{
 $m=$menu;
+}
+
+// YANGI: Boshqaruv panelida ("🗄️ Boshqaruv" bosilgach ochiladigan admin
+// menyusi va uning ichki bo'limlarida) botning oddiy foydalanuvchi bosh
+// sahifasiga ("$menu_p") to'g'ridan-to'g'ri qaytadigan tugma yo'q edi —
+// admin panelidan chiqish uchun faqat qo'lda "/start" yozish kerak edi.
+// Shu sabab "🏠 Bosh sahifa" tugmasi qo'shildi.
+if($text=="🏠 Bosh sahifa" and $cid==$admin){
+sms($cid,"🏠 Bosh sahifa",$m);
+@unlink("user/$cid.step");
+exit;
 }
 
 if($text == "🛍 Buyurtmalarni sozlash" and $cid==$admin){
@@ -3031,7 +3067,7 @@ $cure = $pw->api_service;
 $ap = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM providers WHERE id = $cure"));
 $surl=$ap['api_url'];
 $skey=$ap['api_key'];
-$j=json_decode(get($surl."?key=".$skey."&action=services"), true);
+$j=json_decode(api_get($surl."?key=".$skey."&action=services"), true);
 foreach($j as $el){
 if($el['service']=="$text"){
 $name=$el["name"];
@@ -3475,7 +3511,7 @@ $prov =$rew['provider'];
 $ap = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM providers WHERE id = $prov"));
 $ourl=$ap['api_url'];
 $okey=$ap['api_key'];
-$s=json_decode(get($ourl."?key=".$okey."&action=status&order=$ori"),1);
+$s=json_decode(api_get($ourl."?key=".$okey."&action=status&order=$ori"),1);
 $err=$s['error'];
 $son=$s['remains'];
 $response=$rew['status'];
@@ -3535,7 +3571,7 @@ $prov =$rew['provider'];
 $ap = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM providers WHERE id = $prov"));
 $ourl=$ap['api_url'];
 $okey=$ap['api_key'];
-$s=json_decode(get($ourl."?key=".$okey."&action=status&order=$ori"),1);
+$s=json_decode(api_get($ourl."?key=".$okey."&action=status&order=$ori"),1);
 $err=$s['error'];
 $son=$s['remains'];
 $sev_id = $a['sev_id'];
@@ -4895,7 +4931,7 @@ $max=$s["service_max"];
 $ap = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM providers WHERE id = $api"));
 $surl=$ap['api_url'];
 $skey=$ap['api_key'];
-$j=json_decode(get($surl."?key=".$skey."&action=services"), true);
+$j=json_decode(api_get($surl."?key=".$skey."&action=services"), true);
 foreach($j as $el){
 if($el['service']==$spi){
 $amin=$el["min"];
@@ -5055,7 +5091,7 @@ $sp=explode("=",get("user/$chat_id.params"));
 $m = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM providers WHERE id = ".$sp[4].""));
 $surl = $m['api_url'];
 $skey =$m['api_key'];
-$j=json_decode(get($surl."?key=".$skey."&action=add&service=".get("user/$chat_id.si")."&link=".get("user/$chat_id.ur")."&quantity=".get("user/$chat_id.qu").""),1);
+$j=json_decode(api_get($surl."?key=".$skey."&action=add&service=".get("user/$chat_id.si")."&link=".get("user/$chat_id.ur")."&quantity=".get("user/$chat_id.qu").""),1);
 $jid=$j['order'];
 $jer=$j['error'];
 if(empty($jid)){
@@ -5108,7 +5144,7 @@ $m = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM `providers` WHERE i
 $surl = $m['api_url'];
 $skey =$m['api_key'];
 $sav = date("Y.m.d H:i:s");
-$j=json_decode(get($surl."?key=".$skey."&action=status&order=$order"),1);
+$j=json_decode(api_get($surl."?key=".$skey."&action=status&order=$order"),1);
 $status=$j['status'];
 if($status){
 mysqli_query($connect,"UPDATE orders SET status='$status' WHERE order_id=$uorder");
