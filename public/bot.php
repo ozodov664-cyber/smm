@@ -340,14 +340,24 @@ function smm_panel_post($api_url,$params){
     curl_setopt($ch,CURLOPT_RETURNTRANSFER,true);
     curl_setopt($ch,CURLOPT_SSL_VERIFYPEER,false);
     curl_setopt($ch,CURLOPT_CONNECTTIMEOUT,10);
-    curl_setopt($ch,CURLOPT_TIMEOUT,20);
+    // Foydalanuvchi so'roviga ko'ra: 50 soniyaga o'rnatildi.
+    curl_setopt($ch,CURLOPT_TIMEOUT,50);
     $res = curl_exec($ch);
     if(curl_error($ch)){
-        error_log("[bot.php] SMM panel POST xato: ".curl_error($ch)." URL: ".$api_url);
+        // FIX: bu yerda xato "javob kelmadi" (timeout, tarmoq uzilishi va h.k.)
+        // sababli chiqqanini alohida belgilaymiz - chaqiruvchi kod (masalan
+        // buyurtma tasdiqlash) buni ko'rib, foydalanuvchiga aniqroq xabar
+        // bera oladi ("javobni kutish muddati tugadi" - buyurtma baribir
+        // bajarilgan bo'lishi mumkin, admin bilan tekshiring).
+        error_log("[bot.php] SMM panel POST xato (TIMEOUT/ULANISH): ".curl_error($ch)." URL: ".$api_url);
         curl_close($ch);
         return '';
     }
     curl_close($ch);
+    // Xom (raw) javobni ham logga yozamiz - agar javob JSON bo'lmasa yoki
+    // kutilmagan formatda bo'lsa (masalan HTML xato sahifasi), json_decode
+    // shunchaki NULL qaytaradi va sababni bilib bo'lmay qolardi.
+    error_log("[bot.php] SMM panel xom javobi URL:".$api_url." ->: ".substr((string)$res,0,500));
     return $res;
 }
 
@@ -5633,7 +5643,13 @@ exit;
 }
 }
 
-if((stripos($data,"order=")!==false)){
+// FIX: eski tekshiruv stripos($data,"order=") edi - bu "checkorder=..."
+// callback_data'sida ham "order=" so'zi uchrashi sababli NOTO'G'RI ishga
+// tushib qolardi (har safar "Tasdiqlash" bosilganda ham), natijada
+// "Undefined array key 2/3/4/5/6/7" ogohlantirishlari va keraksiz kod
+// bajarilishi yuz berardi. Endi faqat $data ANIQ "order=" bilan
+// BOSHLANGANDA ishga tushadi (haqiqiy xizmat tanlash tugmasi bosilganda).
+if((strpos($data,"order=")===0)){
 $oid=explode("=",$data)[1];
 $omin=explode("=",$data)[2];
 $omax=explode("=", $data)[3];

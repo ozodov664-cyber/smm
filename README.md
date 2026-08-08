@@ -15,7 +15,18 @@
 **Sizga tavsiya:** Agar tuzatishdan keyin ham buyurtma o'tmasa — Railway loglariga qarang (`SMM buyurtma xatosi` deb boshlanadi), u yerda provayderning aniq javobi (masalan noto'g'ri API key, balans yetarli emas va h.k.) ko'rinadi. Shuningdek `providers` jadvalida `api_url`/`api_key` to'g'ri kiritilganini tekshiring.
 
 
-## 1. Nima tuzatildi (`public/bot.php`)
+## 0.1 v27 — "Xatolik dedi, lekin buyurtma bajarildi" (timeout muammosi)
+
+**Muammo:** Foydalanuvchi "✅ Tasdiqlash"ni bosganda bot "Noma'lum xatolik" deb ko'rsatgan, lekin provayder tomonidan buyurtma **aslida qabul qilinib, bajarilgan** (provayderning o'z xabarnomasi buni tasdiqladi).
+
+**Sabab:** `smm_panel_post()` funksiyasidagi curl so'rovi uchun javobni kutish muddati (timeout) atigi **20 soniya** edi. Provayder so'rovni qabul qilib ulguradi, lekin HTTP javobni shu muddat ichida qaytarib ulgurmasa, bot buni "javob kelmadi = xatolik" deb hisoblab, foydalanuvchiga xato ko'rsatadi — buyurtma esa provayder tomonida baribir ishga tushib qoladi.
+
+**Tuzatildi:**
+1. Timeout 20 → **50 soniyaga** oshirildi (foydalanuvchi so'roviga ko'ra).
+2. Provayderdan kelgan **xom (raw) javob** endi har doim Railway loglariga yoziladi (`SMM panel xom javobi` deb boshlanadi) — bu orqali kelajakda "xato" aniq nimadan kelib chiqqanini (timeout, noto'g'ri JSON, provayderning haqiqiy xato matni) aniq ko'rish mumkin bo'ladi.
+
+**Diqqat:** Bu — vaqtinchalik yumshatish, 100% kafolat emas. Agar provayder doimiy ravishda 45 soniyadan sekinroq javob bersa, muammo qaytalanishi mumkin. Bunday hollarda eng yaxshi yechim — buyurtmani **asinxron** qilish (foydalanuvchiga "buyurtmangiz qabul qilindi, tekshirilmoqda" deb darhol javob berish, so'ng natijani keyinroq, masalan cron orqali, tasdiqlash) — bu ancha katta o'zgarish, xohlasangiz alohida qilib beraman.
+
 
 | # | Muammo | Qayerda | Nega xavfli edi |
 |---|--------|---------|------------------|
