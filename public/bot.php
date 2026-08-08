@@ -2627,9 +2627,7 @@ if($step == "newSub"){
 		if(isset($text)){
 $ci=get("set/c3.txt");
 $to=enc("encode",$text);
-error_log("[bot.php] DEBUG newSub: cid=$cid text=".$text." ci(cate_id)='".$ci."'");
 $ins = mysqli_query($connect,"INSERT INTO subcates(`name`,`cate_id`) VALUES ('$to','$ci')");
-error_log("[bot.php] DEBUG newSub: ins=".var_export($ins,true)." mysqli_error=".mysqli_error($connect)." insert_id=".mysqli_insert_id($connect));
 // FIX: Avval bu yerda INSERT natijasi tekshirilmasdan, har doim "Pastki
 // bo'lim qo'shildi!" deb yozilardi — hatto INSERT xato bergan taqdirda
 // ham (masalan "subcates" jadvali bazada hali mavjud emas bo'lsa, ya'ni
@@ -2741,7 +2739,37 @@ if(stripos($data,"uplads-")!==false){
 $n = explode("-",$data)[1];
 $upx = json_decode(get("set/upladd.json"),1);
 $upx['cate_id']=$n;
+unset($upx['subcate_id']);
 file_put_contents("set/upladd.json",json_encode($upx,JSON_PRETTY_PRINT));
+
+// YANGI: bo'lim (cate) tanlangandan keyin, agar shu bo'limda pastki
+// bo'lim(lar) mavjud bo'lsa, avval o'shani tanlashni so'raymiz (xuddi
+// "Yangi xizmat qo'shish" oqimidagi kabi). Aks holda eski oqim davom etadi.
+$new_arr = [];
+$k = [];
+$asub = mysqli_query($connect,"SELECT * FROM subcates WHERE cate_id = $n");
+$csub = ($asub !== false) ? mysqli_num_rows($asub) : 0;
+while($asub !== false && ($s = mysqli_fetch_assoc($asub))){
+if(!in_array(enc("decode",$s['name']), $new_arr)){
+$new_arr[] = enc("decode",$s['name']);
+$k[]=['text'=>enc("decode",$s['name']),'callback_data'=>"upladss-".$s['subcate_id']];
+}
+}
+if($csub){
+$keyboard2=array_chunk($k,1);
+$kb=json_encode([
+'inline_keyboard'=>$keyboard2,
+]);
+bot('editMessageText',[
+'chat_id'=>$chat_id,
+'message_id'=>$message_id,
+'text'=>"<b>Pastki bo'limni tanlang:</b>",
+'parse_mode'=>'html',
+'reply_markup'=>$kb
+]);
+exit;
+}
+
 $pr=0;
 $prs="";
 $a = mysqli_query($connect,"SELECT * FROM providers");
@@ -2774,6 +2802,47 @@ $prs",
 'reply_markup'=>$kb,
 ]);
 
+}
+}
+
+// YANGI: "Xizmatlarni yuklab olish" oqimida pastki bo'lim tanlangandan
+// keyin — subcate_id'ni saqlab qolamiz, so'ng provayder ro'yxatini
+// ko'rsatib davom etamiz (yuqoridagi "uplads-" bilan bir xil oynani).
+if(stripos($data,"upladss-")!==false){
+$n = explode("-",$data)[1];
+$upx = json_decode(get("set/upladd.json"),1);
+$upx['subcate_id']=$n;
+file_put_contents("set/upladd.json",json_encode($upx,JSON_PRETTY_PRINT));
+$pr=0;
+$prs="";
+$a = mysqli_query($connect,"SELECT * FROM providers");
+$c = mysqli_num_rows($a);
+while($s = mysqli_fetch_assoc($a)){
+$pr++;
+$prtxt=str_replace(["/api/adapter/default/index","/api/v1","/api/v2","https://"],["","","",""],$s['api_url']);
+$prs.="<b>".$pr."</b>: $prtxt\n";
+$k[]=['text'=>$pr,'callback_data'=>"uplprv-".$s['id']];
+}
+$keyboard2=array_chunk($k,3);
+$kb=json_encode([
+'inline_keyboard'=>$keyboard2,
+]);
+if(!$c){
+	bot('answerCallbackQuery',[
+		'callback_query_id'=>$qid,
+		'text'=>"⚠️ Provayderlar topilmadi!",
+		'show_alert'=>true,
+		]);
+	}else{
+		del();
+     bot('sendMessage',[
+        'chat_id'=>$chat_id,
+       'text'=>"Provayderni tanlang:
+ 
+$prs",
+'parse_mode'=>"HTML",
+'reply_markup'=>$kb,
+]);
 }
 }
 
@@ -2999,8 +3068,10 @@ $api_currency =$upx['currency'];
 $service_name = base64_encode(mb_convert_encoding(trans($name),"UTF-8","UTF-8"));
 $service_desc=null;
 $service_edit = "true";
+$subcate_id = isset($upx['subcate_id']) ? intval($upx['subcate_id']) : null;
+$subcate_sql = $subcate_id ? "'$subcate_id'" : "NULL";
 $sq=mysqli_query($connect,"INSERT INTO 
-services(`service_status`,`service_edit`,`service_price`,`category_id`,`service_api`,`api_service`,`api_currency`,`service_type`,`api_detail`,`service_name`,`service_desc`,`service_min`,`service_max`) VALUES ('on','$service_edit','$service_price','$category_id','$tas','$api_service','$api_currency','$type','{\"name\":\"$name\",\"min\":\"$min\",\"max\":\"$max\",\"type\":\"$type\",\"cancel\":\"$cancel\",\"refill\":\"$refill\",\"dripfeed\":\"$dripfeed\"}','$service_name','$service_desc','$min','$max');");
+services(`service_status`,`service_edit`,`service_price`,`category_id`,`subcate_id`,`service_api`,`api_service`,`api_currency`,`service_type`,`api_detail`,`service_name`,`service_desc`,`service_min`,`service_max`) VALUES ('on','$service_edit','$service_price','$category_id',$subcate_sql,'$tas','$api_service','$api_currency','$type','{\"name\":\"$name\",\"min\":\"$min\",\"max\":\"$max\",\"type\":\"$type\",\"cancel\":\"$cancel\",\"refill\":\"$refill\",\"dripfeed\":\"$dripfeed\"}','$service_name','$service_desc','$min','$max');");
 }
 }
 
@@ -3385,7 +3456,6 @@ $new_arr = [];
 $k = [];
 $asub = mysqli_query($connect,"SELECT * FROM subcates WHERE cate_id = $pw");
 $csub = ($asub !== false) ? mysqli_num_rows($asub) : 0;
-error_log("[bot.php] DEBUG adds-: pw(cate_id)='$pw' csub(topilgan pastki bolim soni)=".$csub." mysqli_error=".mysqli_error($connect));
 while($asub !== false && ($s = mysqli_fetch_assoc($asub))){
 if(!in_array(enc("decode",$s['name']), $new_arr)){
 $new_arr[] = enc("decode",$s['name']);
