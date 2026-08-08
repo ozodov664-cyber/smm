@@ -2627,13 +2627,25 @@ if($step == "newSub"){
 		if(isset($text)){
 $ci=get("set/c3.txt");
 $to=enc("encode",$text);
-mysqli_query($connect,"INSERT INTO subcates(`name`,`cate_id`) VALUES ('$to','$ci')");
+$ins = mysqli_query($connect,"INSERT INTO subcates(`name`,`cate_id`) VALUES ('$to','$ci')");
+// FIX: Avval bu yerda INSERT natijasi tekshirilmasdan, har doim "Pastki
+// bo'lim qo'shildi!" deb yozilardi — hatto INSERT xato bergan taqdirda
+// ham (masalan "subcates" jadvali bazada hali mavjud emas bo'lsa, ya'ni
+// schema.sql ishga tushirilmagan bo'lsa). Bu admin uchun chalg'ituvchi
+// edi: bo'lim "qo'shildi" deyilgan bo'lsa-da, aslida hech narsa
+// saqlanmagan va keyinchalik xizmat qo'shishda bu pastki bo'lim
+// hech qayerda ko'rinmagan.
+if($ins === false){
+error_log("[bot.php] newSub: subcates jadvaliga yozishda SQL xatosi: ".mysqli_error($connect));
+sms($cid,"⚠️ Pastki bo'lim qo'shishda xatolik yuz berdi. 'subcates' jadvali bazangizda mavjudligini tekshiring (yangilangan schema.sql faylini Railway MySQL'da ishga tushirishingiz kerak bo'lishi mumkin).",$panel2);
+}else{
 		bot('sendMessage',[
 		'chat_id'=>$cid,
 		'text'=>"Pastki bo'lim qo'shildi!",
 		'parse_mode'=>'html',
 		'reply_markup'=>$panel2
 ]);
+}
 @unlink("user/$cid.step");
 
 }
