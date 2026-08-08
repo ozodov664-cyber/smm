@@ -92,7 +92,21 @@ $simrub  = "130"; #hozirgi rubl kursi
 $channel = getenv('CHANNEL_ID') ?: "130"; #kanal idisi
 $me = "🛎️"; #hohlagan emoji 
 $smm12 = "https://t.me/turkiston_coders/1"; #qullanma xizmatlardan foydalanish vedio url 
-$bot = bot('getMe')->result->username;
+// FIX: Avval "bot('getMe')->result->username" to'g'ridan-to'g'ri chaqirilardi.
+// Bu qator HAR BIR so'rovda (ya'ni foydalanuvchi bosgan HAR QANDAY tugma/
+// yuborgan xabar uchun) ishlaydi. Agar shu paytda Telegram API sekinlashsa
+// yoki vaqtincha javob bermasa, bot('getMe') null qaytaradi va
+// "null->result" PHP FATAL XATO berib, BUTUN so'rovni to'xtatib qo'yardi —
+// natijada foydalanuvchi hech qanday javob olmasdi. Endi bunday holatda
+// xato logga yoziladi va script ".env"/o'zgaruvchidagi oldindan ma'lum
+// bot username'iga (agar mavjud bo'lsa) yoki bo'sh qiymatga tushib davom etadi.
+$__getMe = bot('getMe');
+if(is_object($__getMe) && isset($__getMe->result->username)){
+$bot = $__getMe->result->username;
+}else{
+error_log("[bot.php] getMe() muvaffaqiyatsiz bo'ldi - Telegram API javob bermadi, bo'sh username bilan davom etilmoqda.");
+$bot = getenv('BOT_USERNAME') ?: '';
+}
 
 function enc($var,$exception) {
 if($var=="encode"){
@@ -278,21 +292,40 @@ file_put_contents($h,$r);
 
 
 function joinchat($id){
-$array = array("inline_keyboard");
+$array = array();
 $get = @file_get_contents("set/channel");
-$ex = explode("\n",$get);
-$soni = substr_count($get,"@");
 if($get == null){
 return true;
-}else{
-for($i=0;$i<=count($ex)-1;$i++){
-$first_line = $ex[$i];
+}
+// FIX: "set/channel" satrlarini tozalab, bo'sh qatorlarni (masalan oxirgi
+// qatordagi ortiqcha "\n" sabab paydo bo'lgan bo'sh element) chiqarib
+// tashlaymiz. Bo'sh qator bilan Telegramga so'rov yuborilsa, Telegram
+// "chat not found" xatosini qaytaradi va pastda $ret->result null bo'lib
+// qolib, PHP FATAL XATO bilan BUTUN so'rovni (demak foydalanuvchi bosgan
+// har qanday tugmani) to'xtatib qo'yardi — bu "Xizmatlar", "Referal" va
+// h.k. tugmalar sababsiz ishlamay qolishining asosiy sababi edi.
+$ex = array_values(array_filter(array_map('trim', explode("\n",$get)), fn($v)=>$v!==''));
+if(count($ex) == 0){
+return true;
+}
+$uns = false;
+foreach($ex as $i=>$first_line){
 $kanall=str_replace("@","",$first_line);
      $ret = bot("getChatMember",[
          "chat_id"=>$first_line,
          "user_id"=>$id,
          ]);
-$stat = $ret->result->status;
+// FIX: Telegram API xato qaytarsa (masalan bot kanalda admin emas, kanal
+// o'chirilgan, username xato yozilgan yoki tarmoq xatosi) $ret->result
+// mavjud bo'lmaydi. Avval to'g'ridan-to'g'ri $ret->result->status
+// o'qilardi — bu holatda PHP FATAL XATO berib butun skriptni to'xtatardi.
+// Endi bunday holatda xatoni logga yozib, shu kanal talabini o'tkazib
+// yuboramiz (foydalanuvchini bloklab qo'ymaymiz) va davom etamiz.
+if(!is_object($ret) || !isset($ret->result) || !is_object($ret->result)){
+error_log("[bot.php] joinchat(): '$first_line' kanali uchun getChatMember muvaffaqiyatsiz (bot admin emasmi yoki username xato) - shu kanal tekshiruvi o'tkazib yuborildi.");
+continue;
+}
+$stat = $ret->result->status ?? '';
          if((($stat=="creator" or $stat=="administrator" or $stat=="member"))){
       $array['inline_keyboard']["$i"][0]['text'] = "✅ ".$first_line;
 $array['inline_keyboard']["$i"][0]['url'] = "https://t.me/$kanall";
@@ -302,9 +335,9 @@ $array['inline_keyboard']["$i"][0]['url'] = "https://t.me/$kanall";
 $uns = true;
 }
 }
-$array['inline_keyboard']["$i"][0]['text'] = "🔄 Tekshirish";
-$array['inline_keyboard']["$i"][0]['callback_data'] = "result";
 if($uns == true){
+$array['inline_keyboard'][count($ex)][0]['text'] = "🔄 Tekshirish";
+$array['inline_keyboard'][count($ex)][0]['callback_data'] = "result";
      bot('sendMessage',[
          'chat_id'=>$id,
          'text'=>"⚠️ <b>Iltimos Botdan foydalanish uchun Homiy kanallarga obuna bo'ling:</b>",
@@ -315,7 +348,6 @@ if($uns == true){
 
 }else{
 return true;
-}
 }
 
 }
@@ -545,7 +577,7 @@ Ulangan sayt:</b>
 
 <b>API hisob:</b> $h ₽
 ➖➖➖➖➖➖➖➖➖➖➖",$panel);
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 exit;
 }
 
@@ -591,7 +623,7 @@ $check";
 $admsg = "⚠️ <b>API kalit saqlandi</b>, lekin saytga ulanib bo'lmadi yoki kalit noto'g'ri bo'lishi mumkin. \"📞 Nomer API balans\" bo'limidan qayta tekshiring.";
 }
 sms($cid,$admsg,$panel);
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 exit;
 }
 }
@@ -611,7 +643,7 @@ sms($cid,"
 
 if($text=="🗄️ Boshqaruv" and $cid==$admin){
 sms($cid,"🖥️ Boshqaruv paneli",$panel);
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 exit;
 }
 
@@ -681,7 +713,7 @@ sms($cid,"
 ",keyboard([
 [['text'=>"♻️ Buyurtmalar xolatini yangilash",'callback_data'=>"update=orders"]],
 ]));
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 
 }
 
@@ -849,7 +881,7 @@ bot('sendMessage',[
 'parse_mode'=>'html',
 'reply_markup'=>$panel
 ]);
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 
 }
 
@@ -950,7 +982,16 @@ $panel2=json_encode([
 [['text'=>"🗄️ Boshqaruv"]],
 ]]);
 
-
+// FIX: "⏪ Orqaga" tugmasi $panel klaviaturasida (Boshqaruv paneli ichida)
+// mavjud edi, lekin bosilganda hech qanday javob qaytaruvchi kod yo'q edi —
+// shu sabab tugma bosilganda bot hech narsa qilmay "jim" qolardi.
+// Bu tugma "⚙️ Asosiy sozlamalar" menyusidan ($panel2) ochilgani uchun,
+// bosilganda foydalanuvchini o'sha menyuga qaytaramiz.
+if($text=="⏪ Orqaga" and $cid==$admin){
+sms($cid,"⚙️ Asosiy sozlamalar",$panel2);
+@unlink("user/$cid.step");
+exit;
+}
 
 if($text=="⚙️ Boshqa sozlamalar" and $cid==$admin){
 sms($cid,"⭐ Kerakli bo'limni tanlang:",json_encode([
@@ -1097,7 +1138,7 @@ if((mb_stripos($text,"https://")!==false) and (mb_stripos($text,"https://payme."
 $card = explode("/",$text)[3];
 sms($cid,"✅ O‘zgartirish muvaffaqiyatli amalga oshirildi.",$panel);
 mysqli_query($connect,"UPDATE settings SET `payme_id` = '$card' WHERE id = 1");
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 
 }
 
@@ -1196,7 +1237,7 @@ file_put_contents("set/pay/$ttest/wallet.txt",get("set/wallet.txt"));
 	'parse_mode'=>'html',
 	'reply_markup'=>$panel,
 	]);
-	unlink("user/$cid.step");
+	@unlink("user/$cid.step");
 	
 }
 }
@@ -1257,7 +1298,7 @@ if($step=="*##" and $cid==$admin){
 if(is_numeric($text)==1){
 mysqli_query($connect,"UPDATE settings SET bonus = '$text' WHERE id = 1");
 sms($cid,"✅ O‘zgarish saqlandi",$panel);
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 
 }
 }
@@ -1292,7 +1333,7 @@ $vo = enc("encode",$text);
 mysqli_query($connect,"UPDATE settings SET `$vq` = '$vo' WHERE id = 1");
 sms($cid,"✅ O‘zgartirishlar saqlandi",$panel);
 unlink("bir.txt");
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 exit;
 }
 
@@ -1329,7 +1370,7 @@ sms($cid,"
 *️⃣ Server: $prtxt
 🔢 Buyurtma IDsi: <code>".$stati['api_order']."</code>
 ✅ Buyurtma xolati ($prtxt): <code>".$api['status']."</code>",$panel2);
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 }
 exit;
 }
@@ -1408,7 +1449,7 @@ if((mb_stripos($step,"kalitnew=")!==false) and $cid==$admin){
 sms($cid,"✅ O‘zgartirish muvaffaqiyatli amalga oshirildi.",$panel);
 $io = explode("=",$step)[1];
 mysqli_query($connect,"UPDATE providers SET api_key = '$text' WHERE id = $io");
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 
 }
 
@@ -1544,7 +1585,7 @@ mysqli_query($connect,"INSERT INTO providers(`api_url`,`api_key`) VALUES ('$api_
 	'parse_mode'=>'html',
 	'reply_markup'=>$asosiy,
 	]);
-	unlink("user/$cid.step");
+	@unlink("user/$cid.step");
 	
 }
 }
@@ -1798,7 +1839,7 @@ mysqli_query($connect,"UPDATE categorys SET category_name = '$text' WHERE catego
 		'parse_mode'=>'html',
 		'reply_markup'=>$panel2
 ]);
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 
 }
 }
@@ -1879,7 +1920,7 @@ mysqli_query($connect,"INSERT INTO categorys(category_name,category_status) VALU
 		'parse_mode'=>'html',
 		'reply_markup'=>$panel2
 ]);
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 
 }
 
@@ -1996,7 +2037,7 @@ if(mb_stripos($step, "editFoldms-")!==false){
 		'parse_mode'=>'html',
 		'reply_markup'=>$panel2
 ]);
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 
 }
 
@@ -2130,7 +2171,7 @@ mysqli_query($connect,"INSERT INTO cates(`name`,`category_id`) VALUES ('$to','$c
 		'parse_mode'=>'html',
 		'reply_markup'=>$panel2
 ]);
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 
 }
 }
@@ -2487,7 +2528,7 @@ services(`service_status`,`service_edit`,`service_price`,`category_id`,`service_
 }
 
 edit($chat_id,$mas,"✅ Yuklab olish jarayoni tugallandi.",null);
-unlink("user/$cid2.step");
+@unlink("user/$cid2.step");
 
 }
 }
@@ -2663,8 +2704,8 @@ if(mb_stripos($step, "editXizmatlar-")!==false){
 		'parse_mode'=>'html',
 		'reply_markup'=>$panel2
 ]);
-unlink("user/$cid.step");
-unlink("user/$cid.txt");
+@unlink("user/$cid.step");
+@unlink("user/$cid.txt");
 
 }
 }
@@ -3080,7 +3121,7 @@ $val=explode("=",$step)[1];
 put("set/".$val,"$text");
 sms($cid,"
 ✅ 1 - ".strtoupper($val)." narxi $text so‘mga o‘zgardi",$panel);
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 
 }
 
@@ -3223,7 +3264,7 @@ ID:</b> <a href='tg://user?id=$idi'>$text</a>
 ]
 ])
 ]);
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 }else{
 bot('SendMessage',[
 	'chat_id'=>$cid,
@@ -3268,7 +3309,7 @@ $rew = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM users WHERE id = 
 $miqdor = $text+$rew['balance'];
 $p2 =$text+$rew['outing'];
 mysqli_query($connect,"UPDATE users SET balance=$miqdor, outing=$p2 WHERE id =$saved");
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 }else{
 bot('SendMessage',[
 'chat_id'=>$cid,
@@ -3313,7 +3354,7 @@ $rew = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM users WHERE id = 
 $miqdor =$rew['balance'] - $text;
 $p2 =$rew['outing'] - $text;
 mysqli_query($connect,"UPDATE users SET balance=$miqdor, outing=$p2 WHERE id =$saved");
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 }else{
 bot('SendMessage',[
 'chat_id'=>$cid,
@@ -3372,7 +3413,7 @@ Hisobingizga ".enc("decode",$setting['referal'])." so‘m qo'shildi!";
 sms($usid,"$text",$m);
 $p = get("user/$usid.users");
 put("user/$usid.users",$p+1);
-unlink("user/$chat_id.id");
+@unlink("user/$chat_id.id");
 }
 del();
 sms($chat_id,"🖥️ Asosiy menyudasiz",$m);
@@ -3444,7 +3485,7 @@ if($response=="Completed") {
   }
 if(!$rew or $err){
 sms($cid,"❌ Buyurtma topilmadi!",$m);
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 }else{
 del();
 sms($cid2,"
@@ -3453,7 +3494,7 @@ sms($cid2,"
 <b>📯 Buyurtma holati:</b> $status
 <b>🔎 Qoldiq miqdori:</b> $son ta
 <b>$vaqt</b>",$ss);
-unlink("user/$cid2.step");
+@unlink("user/$cid2.step");
 }
 }
 
@@ -3505,7 +3546,7 @@ if($response=="Completed") {
   }
 if(!$rew or $err){
 sms($cid,"❌ Buyurtma topilmadi!",$m);
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 }else{
 sms($cid,"
 <b>✅ Buyurtma topildi!</b>
@@ -3513,7 +3554,7 @@ sms($cid,"
 <b>📯 Buyurtma holati:</b> $status
 <b>🔎 Qoldiq miqdori:</b> $son ta
 <b>$vaqt</b>",$m);
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 }
 
 }
@@ -3544,7 +3585,7 @@ sms($cid,$start,$m);
 
 if($text=="➡️ Orqaga" and joinchat($cid)==1){
 sms($cid,"🖥️ Asosiy menyudasiz",$m);
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 exit();
 }
 
@@ -3643,7 +3684,7 @@ sms($cid,"✅ Xabar yuborildi",$panel);
 }else{
 sms($cid,"❌ Xabar yuborilmari, extimol botni bloklagan.",$panel);
 }
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 
 }
 
@@ -3754,7 +3795,7 @@ sms($admin,"👤 Kerakli tugmani tanlang",json_encode([
 
 
 }
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 }
 
 
@@ -3773,7 +3814,7 @@ sms($cid,"💵 To‘lov miqdori: $text so‘m",json_encode([
 ]]));
 sms($cid,"🖥️ Asosiy menyudasiz",$menu);
 exit; 
-unlink("user/$cid.step");
+@unlink("user/$cid.step");
 }else{
 sms($cid,"
 ⬇️ Minimal 10000 so‘m
@@ -3900,7 +3941,7 @@ file_put_contents("set/channel",$text);
 }else{
 file_put_contents("set/channel","$kanal\n$text");
 }
-unlink("user/$chat_id.step");
+@unlink("user/$chat_id.step");
 
 }
 }
@@ -3930,6 +3971,39 @@ bot('sendMessage',[
 ]);
 }
 
+
+// --- MUHIM: "📞 Nomer olish" bo'limidagi davlat tanlash sahifalarida
+// "⏮️ Orqaga" tugmasi (callback_data="orqa") ishlatiladi, lekin bu qiymat
+// uchun HECH QANDAY handler yozilmagan edi — shuning uchun bosilganda
+// hech qanday javob kelmasdi. Bosilganda foydalanuvchini shartlar
+// (T&C) ekraniga qaytaramiz — bu yerdan yana "✅ Roziman" bosib davlatlar
+// ro'yxatiga qaytishi mumkin.
+if($data == "orqa"){
+bot('editMessageText',[
+'chat_id'=>$cid2,
+'message_id'=>$mid2,
+'text'=>"❗️*Bo'limdan foydalanish uchun ushbu shartlarga roziligingizni bildiring*",
+'parse_mode'=>"markdown",
+'reply_markup'=>json_encode([
+'inline_keyboard'=>[
+[['text'=>"✅ Roziman",'callback_data'=>"hop"]],
+[['text'=>"❌ Bekor qilish",'callback_data'=>"menu_tolov"]],
+]])
+]);
+bot('answerCallbackQuery',['callback_query_id'=>$qid]);
+}
+
+// --- MUHIM: xuddi shunday, "❌ Bekor qilish" tugmasi (callback_data=
+// "menu_tolov") uchun ham hech qanday handler yo'q edi.
+if($data == "menu_tolov"){
+bot('editMessageText',[
+'chat_id'=>$cid2,
+'message_id'=>$mid2,
+'text'=>"🖥️ Bekor qilindi.",
+'parse_mode'=>"markdown",
+]);
+bot('answerCallbackQuery',['callback_query_id'=>$qid]);
+}
 
 if($data == "b"){
 bot('editmessagetext',[
@@ -4968,8 +5042,8 @@ Keyinroq urinib ko‘ring",
 'show_alert'=>1,
 ]);
 sms($chat_id,"🖥️ Asosiy menyudasiz",$menu);
-unlink("user/$chat_id.step");
-unlink("user/$chat_id.params");
+@unlink("user/$chat_id.step");
+@unlink("user/$chat_id.params");
 exit;
 }else{
 $oe = mysqli_num_rows(mysqli_query($connect,"SELECT * FROM orders"));
@@ -4983,7 +5057,7 @@ sms($chat_id,$order,null);
 $rew = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM users WHERE id = $chat_id"));
 $miqdor = $rew['balance']-$sc[4];
 mysqli_query($connect,"UPDATE users SET balance=$miqdor WHERE id =$chat_id");
-unlink("user/$chat_id.step");
+@unlink("user/$chat_id.step");
 del();
 exit;
 }
