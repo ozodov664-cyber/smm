@@ -139,7 +139,7 @@ require (__DIR__."/../app/controller/sql_connect.php");
 function arr($p){
 global $connect;
 $s = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM `providers` WHERE id = $p"));
-$data = json_decode(file_get_contents($s['api_url']."?key=".$s['api_key']."&action=services"),1);
+$data = json_decode(smm_panel_post($s['api_url'],['key'=>$s['api_key'],'action'=>'services']),1);
 $values=[];
 $new_arr = [];
 $co=0;
@@ -309,6 +309,27 @@ function api_get($url){
     $res = curl_exec($ch);
     if(curl_error($ch)){
         error_log("[bot.php] Provayder API'ga ulanishda xato: ".curl_error($ch)." URL: ".$url);
+        curl_close($ch);
+        return '';
+    }
+    curl_close($ch);
+    return $res;
+}
+
+// SMM panel API v2 standarti (JAP-klon panellar: nitrosms.uz va shu kabilar)
+// har doim POST so'rov talab qiladi — GET so'rovga ko'pchiligi javob bermaydi.
+function smm_panel_post($api_url,$params){
+    $ch = curl_init();
+    curl_setopt($ch,CURLOPT_URL,$api_url);
+    curl_setopt($ch,CURLOPT_POST,true);
+    curl_setopt($ch,CURLOPT_POSTFIELDS,http_build_query($params));
+    curl_setopt($ch,CURLOPT_RETURNTRANSFER,true);
+    curl_setopt($ch,CURLOPT_SSL_VERIFYPEER,false);
+    curl_setopt($ch,CURLOPT_CONNECTTIMEOUT,10);
+    curl_setopt($ch,CURLOPT_TIMEOUT,20);
+    $res = curl_exec($ch);
+    if(curl_error($ch)){
+        error_log("[bot.php] SMM panel POST xato: ".curl_error($ch)." URL: ".$api_url);
         curl_close($ch);
         return '';
     }
@@ -1406,7 +1427,7 @@ $m = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM `providers` WHERE i
 $surl = $m['api_url'];
 $skey =$m['api_key'];
 
-$api = json_decode(api_get($surl."?key=$skey&action=status&order=".$stati['api_order'].""), 1);
+$api = json_decode(smm_panel_post($surl,['key'=>$skey,'action'=>'status','order'=>$stati['api_order']]), 1);
 $prtxt=str_replace(["/api/adapter/default/index","/api/v1","/api/v2","https://"],["","","",""],$c['api_url']);
 sms($cid,"
 *️⃣ Server: $prtxt
@@ -1609,12 +1630,17 @@ exit;
 if($step == "api"){
 	if($cid == $admin){
 	if(isset($text)){
-$raw_balans = @file_get_contents(get("set/api_url")."?key=$text&action=balance");
+$balans_url = get("set/api_url");
+$raw_balans = smm_panel_post($balans_url, ['key'=>$text, 'action'=>'balance']);
 $balans = json_decode((string)$raw_balans, true);
+error_log("[bot.php][api balance debug] URL: $balans_url | RAW JAVOB: ".var_export($raw_balans,true));
 if(!is_array($balans) || isset($balans['error'])){
 $admsg="⚠️ Balansni olish imkoni bo'lmadi
 
-Ehtimol: API kalit noto'g'ri, API manzili noto'g'ri, yoki sayt javob bermadi.";
+Ehtimol: API kalit noto'g'ri, API manzili noto'g'ri, yoki sayt javob bermadi.
+
+<b>Server javobi (debug):</b>
+<code>".htmlspecialchars(mb_substr((string)$raw_balans,0,300))."</code>";
 }else{
 global $connect;
 $admsg="<b>💵 API balansi:</b> ".($balans['balance'] ?? '?')." ".($balans['currency'] ?? '');
@@ -1643,10 +1669,10 @@ $c = mysqli_num_rows($a);
 while($s = mysqli_fetch_assoc($a)){
 $pr++;
 $prtxt=str_replace(["/api/adapter/default/index","/api/v1","/api/v2","https://"],["","","",""],$s['api_url']);
-$sa= json_decode(api_query($s['api_url']."?key=".$s['api_key']."&action=balance"));
+$sa= json_decode(smm_panel_post($s['api_url'],['key'=>$s['api_key'],'action'=>'balance']));
 
-$prs.="<b>".$pr."</b>: $prtxt - ".$sa->balance." ".$sa->currency." \n";
-$k[]=["text"=>$pr,"url"=>$s['api_url']."?key=".$s['api_key']."&action=balance"];
+$prs.="<b>".$pr."</b>: $prtxt - ".(isset($sa->balance)?$sa->balance:'?')." ".(isset($sa->currency)?$sa->currency:'')." \n";
+$k[]=["text"=>$pr,"url"=>$s['api_url']];
 }
 $keyboard2=array_chunk($k,3);
 $keyboard2[]=[['text'=>"Orqaga",'callback_data'=>"api1"]];
@@ -2490,7 +2516,7 @@ $upx = json_decode(get("set/upladd.json"),1);
 $upx['category']=$nq;
 file_put_contents("set/upladd.json",json_encode($upx,JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE));
 $s = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM `providers` WHERE id = $prv"));
-$j=json_decode(file_get_contents($s['api_url']."?key=".$s['api_key']."&action=services"),1);
+$j=json_decode(smm_panel_post($s['api_url'],['key'=>$s['api_key'],'action'=>'services']),1);
 $service_count = 0;
 $serviceid = 0;
 foreach($j as $el){
@@ -2548,7 +2574,7 @@ $mas=bot('sendMessage',[
 		
 $s = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM `providers` WHERE id = $prv"));
 
-$j=json_decode(file_get_contents($s['api_url']."?key=".$s['api_key']."&action=services"),1);
+$j=json_decode(smm_panel_post($s['api_url'],['key'=>$s['api_key'],'action'=>'services']),1);
 if(empty($j)){
 edit($cid2,$mas,"⚠️ Serverda nosozlik
 
@@ -3097,7 +3123,7 @@ $cure = $pw->api_service;
 $ap = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM providers WHERE id = $cure"));
 $surl=$ap['api_url'];
 $skey=$ap['api_key'];
-$j=json_decode(api_get($surl."?key=".$skey."&action=services"), true);
+$j=json_decode(smm_panel_post($surl,['key'=>$skey,'action'=>'services']), true);
 foreach($j as $el){
 if($el['service']=="$text"){
 $name=$el["name"];
@@ -3541,7 +3567,7 @@ $prov =$rew['provider'];
 $ap = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM providers WHERE id = $prov"));
 $ourl=$ap['api_url'];
 $okey=$ap['api_key'];
-$s=json_decode(api_get($ourl."?key=".$okey."&action=status&order=$ori"),1);
+$s=json_decode(smm_panel_post($ourl,['key'=>$okey,'action'=>'status','order'=>$ori]),1);
 $err=$s['error'];
 $son=$s['remains'];
 $response=$rew['status'];
@@ -3601,7 +3627,7 @@ $prov =$rew['provider'];
 $ap = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM providers WHERE id = $prov"));
 $ourl=$ap['api_url'];
 $okey=$ap['api_key'];
-$s=json_decode(api_get($ourl."?key=".$okey."&action=status&order=$ori"),1);
+$s=json_decode(smm_panel_post($ourl,['key'=>$okey,'action'=>'status','order'=>$ori]),1);
 $err=$s['error'];
 $son=$s['remains'];
 $sev_id = $a['sev_id'];
@@ -4961,7 +4987,7 @@ $max=$s["service_max"];
 $ap = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM providers WHERE id = $api"));
 $surl=$ap['api_url'];
 $skey=$ap['api_key'];
-$j=json_decode(api_get($surl."?key=".$skey."&action=services"), true);
+$j=json_decode(smm_panel_post($surl,['key'=>$skey,'action'=>'services']), true);
 foreach($j as $el){
 if($el['service']==$spi){
 $amin=$el["min"];
@@ -5125,7 +5151,7 @@ $sp=explode("=",get("user/$chat_id.params"));
 $m = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM providers WHERE id = ".$sp[4].""));
 $surl = $m['api_url'];
 $skey =$m['api_key'];
-$j=json_decode(api_get($surl."?key=".$skey."&action=add&service=".get("user/$chat_id.si")."&link=".get("user/$chat_id.ur")."&quantity=".get("user/$chat_id.qu").""),1);
+$j=json_decode(smm_panel_post($surl,['key'=>$skey,'action'=>'add','service'=>get("user/$chat_id.si"),'link'=>get("user/$chat_id.ur"),'quantity'=>get("user/$chat_id.qu")]),1);
 $jid=$j['order'];
 $jer=$j['error'];
 if(empty($jid)){
@@ -5178,7 +5204,7 @@ $m = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM `providers` WHERE i
 $surl = $m['api_url'];
 $skey =$m['api_key'];
 $sav = date("Y.m.d H:i:s");
-$j=json_decode(api_get($surl."?key=".$skey."&action=status&order=$order"),1);
+$j=json_decode(smm_panel_post($surl,['key'=>$skey,'action'=>'status','order'=>$order]),1);
 $status=$j['status'];
 if($status){
 mysqli_query($connect,"UPDATE orders SET status='$status' WHERE order_id=$uorder");
