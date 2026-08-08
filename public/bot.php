@@ -405,8 +405,7 @@ $array['inline_keyboard'][count($ex)][0]['text'] = "🔄 Tekshirish";
 $array['inline_keyboard'][count($ex)][0]['callback_data'] = "result";
      bot('sendMessage',[
          'chat_id'=>$id,
-         'text'=>"⚠️ <b>Iltimos Botdan foydalanish uchun Homiy kanallarga obuna bo'ling:
-		 👨🏻‍💻 Coder: @Ozodovv56 </b>",
+         'text'=>"⚠️ <b>Iltimos Botdan foydalanish uchun Homiy kanallarga obuna bo'ling:</b>",
 'parse_mode'=>"html",
 'reply_markup'=>json_encode($array),
 ]);  
@@ -5656,6 +5655,12 @@ sms($chat_id,"📎 Kerakli havolani kiriting (https://):",$ort);
 put("user/$chat_id.step","order=package=sp2=1=$orate");
 put("user/$chat_id.params","$oid=$omin=$omax=$orate=$prov=$serv");
 put("user/$chat_id.si",$oid);
+// FIX: Package turidagi buyurtmalarda quantity fayli hech qachon
+// yozilmagan edi (faqat Default turida yoziladi) - tasdiqlash bosqichida
+// API'ga bo'sh quantity yuborilib, provayder buyurtmani rad etardi (order
+// ID qaytmasdi), natijada DBga hech narsa yozilmay, "Buyurtmalarim"
+// bo'limi doim bo'sh ko'rinardi. Package = 1 dona sifatida saqlanadi.
+put("user/$chat_id.qu","1");
 exit; 
 }
 }
@@ -5749,6 +5754,11 @@ $j=json_decode(smm_panel_post($surl,['key'=>$skey,'action'=>'add','service'=>get
 $jid=$j['order'];
 $jer=$j['error'];
 if(empty($jid)){
+	// FIX: xato faqat $channel (CHANNEL_ID) ga yuborilardi - agar bu
+	// o'zgaruvchi noto'g'ri/sozlanmagan bo'lsa (standart qiymati "130" -
+	// haqiqiy chat emas), xato hech qayerda ko'rinmasdi. Endi Railway
+	// loglariga ham (error_log) yoziladi - bu har doim ishlaydi.
+	error_log("[bot.php] SMM buyurtma xatosi - user:$chat_id url:$surl javob:".json_encode($j));
 	sms($channel,$surl.$skey.$jer,null);
 bot('answerCallbackQuery', [
 'callback_query_id'=>$cqid,
@@ -6078,8 +6088,7 @@ bot('SendVideo',[
 }
 if($text == "🤖 SMM Bot" and joinchat($cid)==1){
 sms($cid,"<b><i>🤖 SMM Bot Ochish Uchun Pastdgagi. ⬇️
- ➕ Yangi bot qo‘shish Tugmasini bosing
- Yoki @Ozodovv56 ga Murojaat qiling</i></b>",json_encode([
+ ➕ Yangi bot qo‘shish Tugmasini bosing</i></b>",json_encode([
 'resize_keyboard'=>true,
 'keyboard'=>[
 [['text'=>"➕ Yangi bot qo‘shish"]],[['text'=>"➡️ Orqaga"]],

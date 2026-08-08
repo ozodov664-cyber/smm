@@ -1,5 +1,20 @@
 # Bot kodi tahlili va Railway'ga joylash qo'llanmasi
 
+## 0. v25 — "Buyurtma tasdiqlansa ham DB'ga yozilmayabdi" muammosi tuzatildi
+
+**Muammo:** "✅ Tasdiqlash" tugmasi bosilganda hech qanday xato ko'rinmasdi, lekin buyurtma bazaga yozilmasdi va "📊Buyurtmalarim" bo'limi doim bo'sh (yoki "❌ Buyurtma topilmadi!") chiqardi.
+
+**Sabab (kodda topildi):** Tasdiqlash bosqichida bot SMM-provayder API'siga so'rov yuboradi; agar provayder `order` ID qaytarmasa, kod **DBga hech narsa yozmaydi** va foydalanuvchiga kichik popup-alertdan boshqa hech narsa ko'rsatmaydi — xato matni faqat `CHANNEL_ID` kanaliga yashirincha yuborilar edi.
+
+**Aniqlangan aniq bug:** "Package" turidagi xizmatlarda buyurtma miqdori (`quantity`) hech qachon saqlanmagan edi (faqat "Default" turida saqlanardi). Tasdiqlash bosqichida API'ga bo'sh `quantity` yuborilib, provayder buyurtmani deyarli har doim rad etardi.
+
+**Tuzatildi:**
+1. Package turidagi buyurtmalar uchun endi `quantity=1` avtomatik saqlanadi.
+2. Provayder xatosi endi Railway loglariga ham yoziladi (`error_log`) — `CHANNEL_ID` noto'g'ri sozlangan bo'lsa ham xato matnini ko'rish mumkin bo'ladi.
+
+**Sizga tavsiya:** Agar tuzatishdan keyin ham buyurtma o'tmasa — Railway loglariga qarang (`SMM buyurtma xatosi` deb boshlanadi), u yerda provayderning aniq javobi (masalan noto'g'ri API key, balans yetarli emas va h.k.) ko'rinadi. Shuningdek `providers` jadvalida `api_url`/`api_key` to'g'ri kiritilganini tekshiring.
+
+
 ## 1. Nima tuzatildi (`public/bot.php`)
 
 | # | Muammo | Qayerda | Nega xavfli edi |
