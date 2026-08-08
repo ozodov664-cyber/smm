@@ -25,6 +25,23 @@
 1. Timeout 20 → **50 soniyaga** oshirildi (foydalanuvchi so'roviga ko'ra).
 2. Provayderdan kelgan **xom (raw) javob** endi har doim Railway loglariga yoziladi (`SMM panel xom javobi` deb boshlanadi) — bu orqali kelajakda "xato" aniq nimadan kelib chiqqanini (timeout, noto'g'ri JSON, provayderning haqiqiy xato matni) aniq ko'rish mumkin bo'ladi.
 
+**Diqqat:** Bu — vaqtinchalik yumshatish, 100% kafolat emas. Agar provayder doimiy ravishda 50 soniyadan sekinroq javob bersa, muammo qaytalanishi mumkin. Bunday hollarda eng yaxshi yechim — buyurtmani **asinxron** qilish (foydalanuvchiga "buyurtmangiz qabul qilindi, tekshirilmoqda" deb darhol javob berish, so'ng natijani keyinroq, masalan cron orqali, tasdiqlash) — bu ancha katta o'zgarish, xohlasangiz alohida qilib beraman.
+
+
+## 0.2 v29 — "Buyurtma bajarildi, lekin ko'rishda xatolik" tuzatildi
+
+**Muammo:** Buyurtma muvaffaqiyatli tasdiqlanadi (DBga yoziladi), lekin "Buyurtmalarim" ro'yxatidan uni bosib ko'rmoqchi bo'lganda "❌ Buyurtma topilmadi!" chiqadi — garchi buyurtma bazada mavjud bo'lsa ham.
+
+**Sabab:** Buyurtmani ko'rish kodi ikkita har xil narsani bitta shart ichida aralashtirib yuborgan edi: (1) buyurtma DBda **haqiqatan topilmadi** va (2) provayderdan **hozirgi holatni so'rashda xato/timeout** yuz berdi (masalan yana o'sha sekin-javob-berish muammosi). Ikkalasi ham bir xil "❌ Buyurtma topilmadi!" xabarini chiqarardi.
+
+**Tuzatildi:** Endi bu ikkisi ajratilgan:
+- Buyurtma DBda haqiqatan yo'q bo'lsa → "❌ Buyurtma topilmadi!"
+- Buyurtma DBda bor, lekin provayderdan qoldiq-miqdorini hozir so'rab bo'lmasa → buyurtma holati (DBda saqlangan oxirgi holat) ko'rsatiladi, faqat "qoldiq miqdorini hozir tekshirib bo'lmadi" deb ogohlantiriladi.
+
+Shuningdek, shu bloklarning birida aniqlanmagan `$my` o'zgaruvchisi ishlatilgan edi (buyurtma sanasi noto'g'ri/bo'sh chiqishiga sabab bo'lardi) — endi to'g'ri `$rew['order_create']` ustunidan olinadi.
+
+2. Provayderdan kelgan **xom (raw) javob** endi har doim Railway loglariga yoziladi (`SMM panel xom javobi` deb boshlanadi) — bu orqali kelajakda "xato" aniq nimadan kelib chiqqanini (timeout, noto'g'ri JSON, provayderning haqiqiy xato matni) aniq ko'rish mumkin bo'ladi.
+
 **Diqqat:** Bu — vaqtinchalik yumshatish, 100% kafolat emas. Agar provayder doimiy ravishda 45 soniyadan sekinroq javob bersa, muammo qaytalanishi mumkin. Bunday hollarda eng yaxshi yechim — buyurtmani **asinxron** qilish (foydalanuvchiga "buyurtmangiz qabul qilindi, tekshirilmoqda" deb darhol javob berish, so'ng natijani keyinroq, masalan cron orqali, tasdiqlash) — bu ancha katta o'zgarish, xohlasangiz alohida qilib beraman.
 
 

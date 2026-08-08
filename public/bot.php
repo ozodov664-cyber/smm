@@ -4098,7 +4098,10 @@ $s=json_decode(smm_panel_post($ourl,['key'=>$okey,'action'=>'status','order'=>$o
 $err=$s['error'];
 $son=$s['remains'];
 $response=$rew['status'];
-$vaqt = $my['retail'];
+// FIX: $my hech qayerda aniqlanmagan edi (Undefined variable) - shu joyda
+// buyurtma yaratilgan sanasini ko'rsatishi kerak, DBdagi $rew['order_create']
+// ustunidan olinadi (pastdagi "step==orders" bloki bilan bir xilda).
+$vaqt = $rew['order_create'];
 if($response=="Completed") {
    $status="✅ Bajarilgan";
    }
@@ -4117,9 +4120,22 @@ if($response=="Completed") {
   if($response=="Canceled"){
   $status="❌ Bekor qilingan";
   }
-if(!$rew or $err){
+// FIX: avval "!$rew or $err" edi - bu DBda buyurtma haqiqatan TOPILMAGAN
+// holat bilan provayderning "holat" so'roviga XATO/JAVOBSIZ qaytgan holatni
+// (masalan yana o'sha timeout muammosi) bir xil "❌ Buyurtma topilmadi!"
+// deb ko'rsatardi - garchi buyurtma DBda bor, shunchaki hozir uning jonli
+// qoldiq-miqdorini so'rab bo'lmagan bo'lsa ham. Endi ikkalasi ajratilgan:
+if(!$rew){
 sms($cid,"❌ Buyurtma topilmadi!",$m);
 @unlink("user/$cid.step");
+}elseif($err){
+sms($cid2,"
+<b>✅ Buyurtma topildi!</b>
+
+<b>📯 Buyurtma holati:</b> $status
+<b>⚠️ Qoldiq miqdorini hozir tekshirib bo'lmadi</b> (provayder javob bermadi, keyinroq qayta urinib ko'ring)
+<b>$vaqt</b>",$ss);
+@unlink("user/$cid2.step");
 }else{
 del();
 sms($cid2,"
@@ -4178,8 +4194,19 @@ if($response=="Completed") {
   if($response=="Canceled"){
   $status="❌ Bekor qilingan";
   }
-if(!$rew or $err){
+// FIX: xuddi yuqoridagi "idby-" blokidagi kabi - buyurtma DBda topilmagan
+// holat bilan provayderning "status" so'roviga xato/javobsiz qaytishi
+// (masalan timeout) ajratildi.
+if(!$rew){
 sms($cid,"❌ Buyurtma topilmadi!",$m);
+@unlink("user/$cid.step");
+}elseif($err){
+sms($cid,"
+<b>✅ Buyurtma topildi!</b>
+
+<b>📯 Buyurtma holati:</b> $status
+<b>⚠️ Qoldiq miqdorini hozir tekshirib bo'lmadi</b> (provayder javob bermadi, keyinroq qayta urinib ko'ring)
+<b>$vaqt</b>",$m);
 @unlink("user/$cid.step");
 }else{
 sms($cid,"
