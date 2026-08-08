@@ -88,6 +88,18 @@ CREATE TABLE IF NOT EXISTS `cates` (
   PRIMARY KEY (`cate_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- YANGI: "Ichki bo'lim" (subcategory) darajasi. Mijoz tomonida navigatsiya
+-- endi 4 bosqichli: Tarmoq (categorys) -> Bo'lim (cates) -> Ichki bo'lim
+-- (subcates, shu jadval) -> Xizmat/narx (services). Masalan "Obunachi"
+-- bo'limi ichida "Kafolatli", "Tabiiy & Aktiv", "Onlayn", "Uzbek" kabi
+-- ichki bo'limlar bo'lishi mumkin.
+CREATE TABLE IF NOT EXISTS `subcates` (
+  `subcate_id` INT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(255) NOT NULL,
+  `cate_id` INT NOT NULL,
+  PRIMARY KEY (`subcate_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- MUHIM: `services` jadvalida ham asosiy kalit `service_id` deb nomlanishi
 -- SHART (bot.php: $s['service_id'], "WHERE service_id = ...").
 CREATE TABLE IF NOT EXISTS `services` (
@@ -96,6 +108,7 @@ CREATE TABLE IF NOT EXISTS `services` (
   `service_edit` VARCHAR(10) NOT NULL DEFAULT 'false',
   `service_price` DECIMAL(15,4) NOT NULL DEFAULT 0,
   `category_id` INT DEFAULT NULL,
+  `subcate_id` INT DEFAULT NULL,         -- YANGI: subcates.subcate_id ga bog'liq (ichki bo'lim)
   `service_api` INT DEFAULT NULL,        -- providers.id ga bog'liq
   `api_service` VARCHAR(64) DEFAULT NULL,-- provayderdagi xizmat ID'si
   `api_currency` VARCHAR(10) DEFAULT NULL,
@@ -107,6 +120,13 @@ CREATE TABLE IF NOT EXISTS `services` (
   `service_max` INT DEFAULT 0,
   PRIMARY KEY (`service_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- MUHIM: Agar sizda bu botning ESKI (subcates jadvali qo'shilishidan oldingi)
+-- bazasi bo'lsa, yuqoridagi "CREATE TABLE IF NOT EXISTS `services`" eski
+-- jadvalni o'zgartirmaydi (ustun qo'shmaydi). Shu sabab quyidagi qatorni HAM
+-- ishga tushiring (MySQL 8.0.29+ talab qilinadi; Railway'ning standart MySQL
+-- versiyasi buni qo'llab-quvvatlaydi):
+ALTER TABLE `services` ADD COLUMN IF NOT EXISTS `subcate_id` INT DEFAULT NULL;
 
 CREATE TABLE IF NOT EXISTS `myorder` (
   `id` INT NOT NULL AUTO_INCREMENT,

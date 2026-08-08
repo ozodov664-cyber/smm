@@ -1822,6 +1822,7 @@ if($text == "🛍 Buyurtmalarni sozlash" and $cid==$admin){
 		'inline_keyboard'=>[
 		[['text'=>"📂 Bo'limlarni sozlash",'callback_data'=>"bolim"]],
 		[['text'=>"📂 Ichki bo'limlarni sozlash",'callback_data'=>"ichki"]],
+		[['text'=>"📂 Pastki (ichki-ichki) bo'limlarni sozlash",'callback_data'=>"pastki"]],
 		[['text'=>"🛍 Xizmatlarni sozlash",'callback_data'=>"xizmat"]]
 ]
 ])
@@ -1839,6 +1840,7 @@ del();
 		'inline_keyboard'=>[
 		[['text'=>"📂 Bo'limlarni sozlash",'callback_data'=>"bolim"]],
 		[['text'=>"📂 Ichki bo'limlarni sozlash",'callback_data'=>"ichki"]],
+		[['text'=>"📂 Pastki (ichki-ichki) bo'limlarni sozlash",'callback_data'=>"pastki"]],
 		[['text'=>"🛍 Xizmatlarni sozlash",'callback_data'=>"xizmat"]]
 ]
 ])
@@ -2280,6 +2282,355 @@ mysqli_query($connect,"INSERT INTO cates(`name`,`category_id`) VALUES ('$to','$c
 		bot('sendMessage',[
 		'chat_id'=>$cid,
 		'text'=>"Ichki bo'lim qo'shildi!",
+		'parse_mode'=>'html',
+		'reply_markup'=>$panel2
+]);
+@unlink("user/$cid.step");
+
+}
+}
+
+
+// ==========================================================================
+// YANGI: "Pastki bo'lim" (subcates) uchun admin boshqaruvi — "cates" (Ichki
+// bo'lim) uchun yuqoridagi blok bilan bir xil naqshda qurilgan, faqat bitta
+// qo'shimcha bosqich bilan: bu yerda avval TARMOQ (categorys), keyin BO'LIM
+// (cates), keyin esa PASTKI BO'LIM (subcates) tanlanadi/kiritiladi.
+// ==========================================================================
+
+if($data == "pastki"){
+     bot('editMessageText',[
+        'chat_id'=>$chat_id,
+       'message_id'=>$message_id,
+       'text'=>"<b>Quyidagilardan birini tanlang:</b>",
+'parse_mode'=>'html',
+'reply_markup'=>json_encode([
+'inline_keyboard'=>[
+[['text'=>"Yangi pastki bo'lim qo'shish",'callback_data'=>"newSub"]],
+[['text'=>"Tahrirlash",'callback_data'=>"editSub"]],
+[['text'=>"O'chirish",'callback_data'=>"delSub"]],
+[['text'=>"Orqaga", 'callback_data'=>"xsetting"]],
+]
+])
+]);
+}
+
+if($data == "editSub"){
+     bot('editMessageText',[
+        'chat_id'=>$cid2,
+       'message_id'=>$mid2,
+       'text'=>"<b>Quyidagilardan birini tanlang:</b>",
+'parse_mode'=>'html',
+'reply_markup'=>json_encode([
+'inline_keyboard'=>[
+[['text'=>"Nomini o'zgartirish",'callback_data'=>"editSubs"]],
+]
+])
+]);
+}
+
+if($data == "editSubs"){
+$a = mysqli_query($connect,"SELECT * FROM categorys");
+while($s = mysqli_fetch_assoc($a)){
+$k[]=['text'=>enc("decode",$s['category_name']),'callback_data'=>"editSubs-".$s['category_id']];
+}
+
+$keyboard2=array_chunk($k,1);
+$kb=json_encode([
+'inline_keyboard'=>$keyboard2,
+]);
+     bot('editMessageText',[
+        'chat_id'=>$cid2,
+       'message_id'=>$mid2,
+       'text'=>"<b>Tarmoqni tanlang:</b>",
+'parse_mode'=>'html',
+'reply_markup'=>$kb
+]);
+}
+
+if(mb_stripos($data, "editSubs-")!==false){
+$n = explode("-",$data)[1];
+$new_arr = [];
+$k = [];
+$a = mysqli_query($connect,"SELECT * FROM cates WHERE category_id = $n");
+$c = mysqli_num_rows($a);
+while($s = mysqli_fetch_assoc($a)){
+if(!in_array(enc("decode",$s['name']), $new_arr)){
+$new_arr[] = enc("decode",$s['name']);
+$k[]=['text'=>enc("decode",$s['name']),'callback_data'=>"editSubm-".$s['cate_id']];
+}
+}
+$keyboard2=array_chunk($k,1);
+$kb=json_encode([
+'inline_keyboard'=>$keyboard2,
+]);
+if(!$c){
+	bot('answerCallbackQuery',[
+		'callback_query_id'=>$qid,
+		'text'=>"⚠️ Ushbu tarmoq uchun bo'limlar topilmadi!",
+		'show_alert'=>true,
+		]);
+	}else{
+     bot('editMessageText',[
+        'chat_id'=>$cid2,
+       'message_id'=>$mid2,
+       'text'=>"<b>Bo'limni tanlang:</b>",
+'parse_mode'=>'html',
+'reply_markup'=>$kb
+]);
+}
+}
+
+if(mb_stripos($data, "editSubm-")!==false){
+$n = explode("-",$data)[1];
+$new_arr = [];
+$k = [];
+$a = mysqli_query($connect,"SELECT * FROM subcates WHERE cate_id = $n");
+$c = mysqli_num_rows($a);
+while($s = mysqli_fetch_assoc($a)){
+if(!in_array(enc("decode",$s['name']), $new_arr)){
+$new_arr[] = enc("decode",$s['name']);
+$k[]=['text'=>enc("decode",$s['name']),'callback_data'=>"editSubx-".$s['subcate_id']];
+}
+}
+$keyboard2=array_chunk($k,1);
+$kb=json_encode([
+'inline_keyboard'=>$keyboard2,
+]);
+if(!$c){
+	bot('answerCallbackQuery',[
+		'callback_query_id'=>$qid,
+		'text'=>"⚠️ Ushbu bo'lim uchun pastki bo'limlar topilmadi!",
+		'show_alert'=>true,
+		]);
+	}else{
+     bot('editMessageText',[
+        'chat_id'=>$cid2,
+       'message_id'=>$mid2,
+       'text'=>"<b>Pastki bo'limni tanlang:</b>",
+'parse_mode'=>'html',
+'reply_markup'=>$kb
+]);
+}
+}
+
+if(mb_stripos($data, "editSubx-")!==false){
+	$ex = explode("-",$data)[1];
+	bot('deleteMessage',[
+	'chat_id'=>$cid2,
+	'message_id'=>$mid2,
+]);
+   bot('sendMessage',[
+   'chat_id'=>$cid2,
+   'text'=>"<b>Yangi qiymatni kiriting:</b>",
+   'parse_mode'=>'html',
+   'reply_markup'=>$boshqarish
+]);
+file_put_contents("user/$cid2.step","editSubxs-$ex");
+
+}
+
+if(mb_stripos($step, "editSubxs-")!==false){
+	$ex = explode("-",$step)[1];
+	if(isset($text)){
+	$text=enc("encode",$text);
+		mysqli_query($connect,"UPDATE subcates SET name = '$text' WHERE subcate_id = $ex");
+		bot('SendMessage',[
+		'chat_id'=>$cid,
+		'text'=>"<b>Muvaffaqiyatli o'zgartirildi.</b>",
+		'parse_mode'=>'html',
+		'reply_markup'=>$panel2
+]);
+@unlink("user/$cid.step");
+
+}
+
+}
+
+
+if($data == "delSub"){
+$a = mysqli_query($connect,"SELECT * FROM categorys");
+while($s = mysqli_fetch_assoc($a)){
+$k[]=['text'=>enc("decode",$s['category_name']),'callback_data'=>"delSubs=".$s['category_id']];
+}
+
+$keyboard2=array_chunk($k,3);
+$kb=json_encode([
+'inline_keyboard'=>$keyboard2,
+]);
+     bot('editMessageText',[
+        'chat_id'=>$cid2,
+       'message_id'=>$mid2,
+       'text'=>"<b>Tarmoqni tanlang:</b>",
+'parse_mode'=>'html',
+'reply_markup'=>$kb
+]);
+}
+
+if(mb_stripos($data, "delSubs=")!==false){
+$bolim = explode("=",$data)[1];
+$new_arr = [];
+$k = [];
+$a = mysqli_query($connect,"SELECT * FROM cates WHERE category_id = $bolim");
+$c = mysqli_num_rows($a);
+while($s = mysqli_fetch_assoc($a)){
+if(!in_array(enc("decode",$s['name']), $new_arr)){
+$new_arr[] = enc("decode",$s['name']);
+$k[]=['text'=>enc("decode",$s['name']),'callback_data'=>"delSubm=".$s['cate_id']];
+}
+}
+$keyboard2=array_chunk($k,1);
+$keyboard2[]=[['text'=>"Orqaga",'callback_data'=>"absd"]];
+$kb=json_encode([
+'inline_keyboard'=>$keyboard2,
+]);
+if(!$c){
+	bot('answerCallbackQuery',[
+		'callback_query_id'=>$qid,
+		'text'=>"⚠️ Ushbu tarmoq uchun bo'limlar topilmadi!",
+		'show_alert'=>true,
+		]);
+	}else{
+     bot('editMessageText',[
+        'chat_id'=>$cid2,
+       'message_id'=>$mid2,
+     'text'=>"<b>Bo'limni tanlang:</b>",
+'parse_mode'=>'html',
+'reply_markup'=>$kb
+]);
+}
+}
+
+if(mb_stripos($data, "delSubm=")!==false){
+$cate = explode("=",$data)[1];
+$new_arr = [];
+$k = [];
+$a = mysqli_query($connect,"SELECT * FROM subcates WHERE cate_id = $cate");
+$c = mysqli_num_rows($a);
+while($s = mysqli_fetch_assoc($a)){
+if(!in_array(enc("decode",$s['name']), $new_arr)){
+$new_arr[] = enc("decode",$s['name']);
+$k[]=['text'=>enc("decode",$s['name']),'callback_data'=>"delSubx=".$s['subcate_id']];
+}
+}
+$keyboard2=array_chunk($k,1);
+$keyboard2[]=[['text'=>"Orqaga",'callback_data'=>"absd"]];
+$kb=json_encode([
+'inline_keyboard'=>$keyboard2,
+]);
+if(!$c){
+	bot('answerCallbackQuery',[
+		'callback_query_id'=>$qid,
+		'text'=>"⚠️ Ushbu bo'lim uchun pastki bo'limlar topilmadi!",
+		'show_alert'=>true,
+		]);
+	}else{
+     bot('editMessageText',[
+        'chat_id'=>$cid2,
+       'message_id'=>$mid2,
+     'text'=>"<b>Pastki bo'limni tanlang:</b>",
+'parse_mode'=>'html',
+'reply_markup'=>$kb
+]);
+}
+}
+
+if(mb_stripos($data, "delSubx=")!==false){
+	$ex = explode("=",$data)[1];
+mysqli_query($connect,"DELETE FROM services WHERE subcate_id=$ex");
+mysqli_query($connect,"DELETE FROM subcates WHERE subcate_id=$ex");
+     bot('deleteMessage',[
+	'chat_id'=>$cid2,
+	'message_id'=>$mid2,
+]);
+   bot('sendMessage',[
+   'chat_id'=>$cid2,
+       'text'=>"Pastki bo'lim olib tashlandi!",
+'parse_mode'=>'html',
+'reply_markup'=>$panel2
+]);
+
+}
+
+
+if($data == "newSub"){
+$a = mysqli_query($connect,"SELECT * FROM categorys");
+while($s = mysqli_fetch_assoc($a)){
+$k[]=['text'=>enc("decode",$s['category_name']),'callback_data'=>"adSub=".$s['category_id']];
+}
+
+$keyboard2=array_chunk($k,3);
+$kb=json_encode([
+'inline_keyboard'=>$keyboard2,
+]);
+     bot('editMessageText',[
+        'chat_id'=>$chat_id,
+       'message_id'=>$message_id,
+       'text'=>"<b>Tarmoqni tanlang:</b>",
+'parse_mode'=>'html',
+'reply_markup'=>$kb
+]);
+}
+
+if(mb_stripos($data, "adSub=")!==false){
+	$ex = explode("=",$data)[1];
+$new_arr = [];
+$k = [];
+$a = mysqli_query($connect,"SELECT * FROM cates WHERE category_id = $ex");
+$c = mysqli_num_rows($a);
+while($s = mysqli_fetch_assoc($a)){
+if(!in_array(enc("decode",$s['name']), $new_arr)){
+$new_arr[] = enc("decode",$s['name']);
+$k[]=['text'=>enc("decode",$s['name']),'callback_data'=>"adSub2-".$s['cate_id']];
+}
+}
+$keyboard2=array_chunk($k,1);
+$kb=json_encode([
+'inline_keyboard'=>$keyboard2,
+]);
+if(!$c){
+	bot('answerCallbackQuery',[
+		'callback_query_id'=>$qid,
+		'text'=>"⚠️ Ushbu tarmoq uchun bo'limlar topilmadi!",
+		'show_alert'=>true,
+		]);
+	}else{
+     bot('editMessageText',[
+        'chat_id'=>$chat_id,
+       'message_id'=>$message_id,
+       'text'=>"<b>Bo'limni tanlang:</b>",
+'parse_mode'=>'html',
+'reply_markup'=>$kb
+]);
+}
+}
+
+if(mb_stripos($data, "adSub2-")!==false){
+	$ex = explode("-",$data)[1];
+	file_put_contents("set/c3.txt",$ex);
+	bot('deleteMessage',[
+	'chat_id'=>$chat_id,
+	'message_id'=>$message_id,
+]);
+   bot('sendMessage',[
+   'chat_id'=>$chat_id,
+   'text'=>"<b>Yangi pastki bo'lim nomini yuboring:</b>",
+   'parse_mode'=>'html',
+   'reply_markup'=>$aort
+]);
+file_put_contents("user/$chat_id.step",'newSub');
+
+}
+
+
+if($step == "newSub"){
+		if(isset($text)){
+$ci=get("set/c3.txt");
+$to=enc("encode",$text);
+mysqli_query($connect,"INSERT INTO subcates(`name`,`cate_id`) VALUES ('$to','$ci')");
+		bot('sendMessage',[
+		'chat_id'=>$cid,
+		'text'=>"Pastki bo'lim qo'shildi!",
 		'parse_mode'=>'html',
 		'reply_markup'=>$panel2
 ]);
@@ -3009,6 +3360,38 @@ if(mb_stripos($data, "adds-")!==false){
 $pw=explode("-",$data)[1];
 $adds=json_decode(get("set/adds.json"),1);
 $adds['cate_id']=$pw;
+$adds['category_id']=file_get_contents("set/c.txt");
+put("set/adds.json",json_encode($adds,JSON_UNESCAPED_UNICODE));
+
+// YANGI: Endi bo'lim (cate) tanlangandan keyin, agar shu bo'limda pastki
+// bo'lim(lar) (subcates) mavjud bo'lsa, avval o'shani tanlash so'raladi.
+// Agar hali pastki bo'lim qo'shilmagan bo'lsa (eski uslub), to'g'ridan-
+// to'g'ri eski oqimga (provayder tanlash) o'tiladi.
+$new_arr = [];
+$k = [];
+$asub = mysqli_query($connect,"SELECT * FROM subcates WHERE cate_id = $pw");
+$csub = ($asub !== false) ? mysqli_num_rows($asub) : 0;
+while($asub !== false && ($s = mysqli_fetch_assoc($asub))){
+if(!in_array(enc("decode",$s['name']), $new_arr)){
+$new_arr[] = enc("decode",$s['name']);
+$k[]=['text'=>enc("decode",$s['name']),'callback_data'=>"addss-".$s['subcate_id']];
+}
+}
+if($csub){
+$keyboard2=array_chunk($k,1);
+$kb=json_encode([
+'inline_keyboard'=>$keyboard2,
+]);
+bot('editMessageText',[
+'chat_id'=>$chat_id,
+'message_id'=>$message_id,
+'text'=>"<b>Pastki bo'limni tanlang:</b>",
+'parse_mode'=>'html',
+'reply_markup'=>$kb
+]);
+exit;
+}
+
 $a = mysqli_query($connect,"SELECT * FROM providers");
 $c = mysqli_num_rows($a);
 if(!$c){
@@ -3018,8 +3401,6 @@ bot('answerCallbackQuery',[
 		'show_alert'=>true,
 		]);
 	}else{
-$adds['category_id']=file_get_contents("set/c.txt");
-put("set/adds.json",json_encode($adds,JSON_UNESCAPED_UNICODE));
 	bot('deleteMessage',[
 	'chat_id'=>$chat_id,
 	'message_id'=>$message_id,
@@ -3034,6 +3415,38 @@ file_put_contents("user/$chat_id.step",'servisw');
 
 }
 }
+
+// YANGI: pastki bo'lim tanlangandan keyin - eski oqim (provayder tanlash)
+// davom etadi, faqat endi $adds['subcate_id'] ham saqlanadi.
+if(mb_stripos($data, "addss-")!==false){
+$pw2=explode("-",$data)[1];
+$adds=json_decode(get("set/adds.json"),1);
+$adds['subcate_id']=$pw2;
+put("set/adds.json",json_encode($adds,JSON_UNESCAPED_UNICODE));
+$a = mysqli_query($connect,"SELECT * FROM providers");
+$c = mysqli_num_rows($a);
+if(!$c){
+bot('answerCallbackQuery',[
+		'callback_query_id'=>$qid,
+		'text'=>"⚠️ Provayderlar topilmadi!",
+		'show_alert'=>true,
+		]);
+	}else{
+	bot('deleteMessage',[
+	'chat_id'=>$chat_id,
+	'message_id'=>$message_id,
+]);
+   bot('sendMessage',[
+   'chat_id'=>$chat_id,
+   'text'=>"<b>Yangi xizmat nomini yuboring:</b>",
+   'parse_mode'=>'html',
+   'reply_markup'=>$aort
+]);
+file_put_contents("user/$chat_id.step",'servisw');
+
+}
+}
+
 if($step == "servisw"){
 $pr=0;
 $prs="";
@@ -3162,13 +3575,18 @@ sms($cid,"
 Qaytadan xizmat IDsini yuboring:",null);
 }else{
 $category_id=$pw->cate_id;
+// YANGI: agar admin oldingi bosqichda pastki bo'lim (subcate) tanlagan
+// bo'lsa, $pw->subcate_id shu yerda mavjud bo'ladi; aks holda (eski
+// bo'limlar uchun) NULL saqlanadi.
+$subcate_id = isset($pw->subcate_id) ? intval($pw->subcate_id) : null;
+$subcate_sql = $subcate_id ? "'$subcate_id'" : "NULL";
 $service_price = $pw->service_price;
 $api_service=$pw->api_service; 
 $api_currency =$pw->api_currency; 
 $service_name = base64_encode(mb_convert_encoding(get("set/adds.json.name"),"UTF-8","UTF-8"));
 $service_desc = base64_encode(get("set/adds.json.desc"));
 $service_edit = "true";
-mysqli_query($connect,"INSERT INTO services(`service_status`,`service_price`,`service_edit`,`category_id`,`service_api`,`api_service`,`api_currency`,`service_type`,`api_detail`,`service_name`,`service_desc`,`service_min`,`service_max`) VALUES ('on','$service_price','$service_edit','$category_id','$text','$api_service','$api_currency','$type','{\"name\":\"$name\",\"min\":\"$min\",\"max\":\"$max\",\"type\":\"$type\",\"cancel\":\"$cancel\",\"refill\":\"$refill\",\"dripfeed\":\"$dripfeed\"}','$service_name','$service_desc','$min','$max');");
+mysqli_query($connect,"INSERT INTO services(`service_status`,`service_price`,`service_edit`,`category_id`,`subcate_id`,`service_api`,`api_service`,`api_currency`,`service_type`,`api_detail`,`service_name`,`service_desc`,`service_min`,`service_max`) VALUES ('on','$service_price','$service_edit','$category_id',$subcate_sql,'$text','$api_service','$api_currency','$type','{\"name\":\"$name\",\"min\":\"$min\",\"max\":\"$max\",\"type\":\"$type\",\"cancel\":\"$cancel\",\"refill\":\"$refill\",\"dripfeed\":\"$dripfeed\"}','$service_name','$service_desc','$min','$max');");
 
 sms($cid,"✅ Yangi xizmat qo'shildi.",$panel2);
 }
@@ -4947,16 +5365,51 @@ exit;
 
 if(mb_stripos($data,"tanla2=")!==false and joinchat($chat_id)==1){
 $n=explode("=",$data)[1];
-$as=0;
 
+$adds=json_decode(get("user/$chat_id.sub.json"),1);
+$adds['bolim_id']=$n;
+put("user/$chat_id.sub.json",json_encode($adds));
+
+// YANGI: Endi bu bosqichda to'g'ridan-to'g'ri xizmatlar (narxlar) emas,
+// balki "Ichki bo'lim" (subcates) ro'yxati ko'rsatiladi — masalan
+// "Obunachi" bo'limi ichida "Kafolatli", "Tabiiy & Aktiv" va h.k.
+// Orqaga muvofiqlik uchun: agar bu bo'limda hali BIRORTA HAM ichki bo'lim
+// qo'shilmagan bo'lsa (eski, subcates funksiyasidan oldingi sozlash), eski
+// xatti-harakatga qaytib, xizmatlarni to'g'ridan-to'g'ri shu yerda
+// ko'rsatamiz — shunda oldindan sozlangan botlar buzilib qolmaydi.
+$new_arr = [];
+$k = [];
+$a = mysqli_query($connect,"SELECT * FROM subcates WHERE cate_id = $n");
+$c = ($a !== false) ? mysqli_num_rows($a) : 0;
+while($a !== false && ($s = mysqli_fetch_assoc($a))){
+if(!in_array(enc("decode",$s['name']), $new_arr)){
+$new_arr[] = enc("decode",$s['name']);
+$k[]=['text'=>"".enc("decode",$s['name']),'callback_data'=>"tanla3=".$s['subcate_id']];
+}
+}
+
+if($c){
+$keyboard2=array_chunk($k,1);
+$keyboard2[]=[['text'=>"⏪ Orqaga",'callback_data'=>"tanla1=".$adds['cate_id']]];
+$kb=json_encode([
+'inline_keyboard'=>$keyboard2,
+]);
+edit($chat_id,$message_id,"Ichki bo'limlaridan birini tanlang.",$kb);
+exit;
+}
+
+// Ichki bo'lim mavjud emas — eski uslubda to'g'ridan-to'g'ri xizmatlarni
+// ko'rsatamiz (quyida, servis darajasidagi kod bilan bir xil).
+$as=0;
+$k=[];
 $a = mysqli_query($connect,"SELECT * FROM services WHERE category_id = '$n' AND service_status = 'on'");
-$c = mysqli_num_rows($a);
-while($s = mysqli_fetch_assoc($a)){
+$c = ($a !== false) ? mysqli_num_rows($a) : 0;
+while($a !== false && ($s = mysqli_fetch_assoc($a))){
 $as++;
-$k[]=['text'=>"".base64_decode($s['service_name'])."",'callback_data'=>"ordered=".$s['service_id']."=".$n];
+$narx = fmt_price($s['service_price']);
+$k[]=['text'=>"".base64_decode($s['service_name'])." $narx - so‘m",'callback_data'=>"ordered=".$s['service_id']."=".$n];
 }
 $keyboard2=array_chunk($k,1);
-$adds=json_decode(get("user/$chat_id.sub.json"),1);
 $keyboard2[]=[['text'=>"⏪ Orqaga",'callback_data'=>"tanla1=".$adds['cate_id']]];
 $kb=json_encode([
 'inline_keyboard'=>$keyboard2,
@@ -4974,6 +5427,41 @@ exit;
 }
 
 
+// YANGI: "Ichki bo'lim" (subcates) tanlangandan keyin — shu ichki bo'limga
+// tegishli xizmatlar (narxlar) ro'yxati. Avval bu vazifani "tanla2="
+// bajarardi, endi u "Ichki bo'lim" ro'yxatini ko'rsatadi, shu bosqich esa
+// yakuniy narxlar ro'yxatini ko'rsatadi.
+if(mb_stripos($data,"tanla3=")!==false and joinchat($chat_id)==1){
+$n=explode("=",$data)[1];
+$as=0;
+
+$a = mysqli_query($connect,"SELECT * FROM services WHERE subcate_id = '$n' AND service_status = 'on'");
+$c = ($a !== false) ? mysqli_num_rows($a) : 0;
+while($a !== false && ($s = mysqli_fetch_assoc($a))){
+$as++;
+$narx = fmt_price($s['service_price']);
+$k[]=['text'=>"".base64_decode($s['service_name'])." $narx - so‘m",'callback_data'=>"ordered=".$s['service_id']."=".$n];
+}
+$keyboard2=array_chunk($k,1);
+$adds=json_decode(get("user/$chat_id.sub.json"),1);
+$keyboard2[]=[['text'=>"⏪ Orqaga",'callback_data'=>"tanla2=".$adds['bolim_id']]];
+$kb=json_encode([
+'inline_keyboard'=>$keyboard2,
+]);
+if(!$c){
+	bot('answerCallbackQuery',[
+		'callback_query_id'=>$qid,
+		'text'=>"⚠️ Ushbu ichki bo'lim uchun xizmatlar topilmadi!",
+		'show_alert'=>true,
+		]);
+	}else{
+edit($chat_id,$message_id,"Marhamat, kerakli ta'rifni tanlang!
+Narxlar 1000 tasi uchun berilgan.",$kb);
+exit; 
+}
+}
+
+
 
 
 
@@ -4983,6 +5471,7 @@ if((stripos($data,"ordered=")!==false)){
 $n=explode("=",$data)[1];
 $n2=explode("=",$data)[2];
 $a = mysqli_query($connect,"SELECT * FROM services WHERE service_id= '$n'");
+$subcate_id=null;
 while($s = mysqli_fetch_assoc($a)){
 $nam = base64_decode($s['service_name']);
 $sid = $s['service_id'];
@@ -4994,6 +5483,7 @@ $type=$s['service_type'];
 $spi = $s['service_api'];
 $min=$s["service_min"];
 $max=$s["service_max"];
+$subcate_id = $s['subcate_id'] ?? null;
 }
 
 
@@ -5036,6 +5526,11 @@ bot('answerCallbackQuery',[
 'show_alert'=>true,
 ]);
 }else{
+// FIX/YANGI: "Orqaga" tugmasi avval doim "tanla2=$n2" ga qaytardi. Endi
+// xizmat "Ichki bo'lim" (subcates) orqali tanlangan bo'lsa, "tanla3="ga
+// (ichki bo'lim ro'yxatiga), aks holda (eski, ichki bo'limsiz bo'limlar
+// uchun) eskicha "tanla2="ga qaytaramiz.
+$orqaga_cb = $subcate_id ? ("tanla3=".$subcate_id) : ("tanla2=".$n2);
 edit($chat_id,$message_id,"
 <b>".($nam)."</b>
 
@@ -5047,7 +5542,7 @@ $ab
 ",json_encode([
 'inline_keyboard'=>[
 [['text'=>"✅ Tanlash",'callback_data'=>"order=$spi=$min=$max=".$narx."=$type=".$api."=$sid"]],
-[['text'=>"⏪ Orqaga",'callback_data'=>"tanla2=$n2"]],
+[['text'=>"⏪ Orqaga",'callback_data'=>$orqaga_cb]],
 ]]));
 exit; 
 }
