@@ -4953,8 +4953,7 @@ $a = mysqli_query($connect,"SELECT * FROM services WHERE category_id = '$n' AND 
 $c = mysqli_num_rows($a);
 while($s = mysqli_fetch_assoc($a)){
 $as++;
-$narx = fmt_price($s['service_price']);
-$k[]=['text'=>"".base64_decode($s['service_name'])." $narx - so‘m",'callback_data'=>"ordered=".$s['service_id']."=".$n];
+$k[]=['text'=>"".base64_decode($s['service_name'])."",'callback_data'=>"ordered=".$s['service_id']."=".$n];
 }
 $keyboard2=array_chunk($k,1);
 $adds=json_decode(get("user/$chat_id.sub.json"),1);
