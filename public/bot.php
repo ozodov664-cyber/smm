@@ -1953,16 +1953,34 @@ file_put_contents("user/$chat_id.step",'newFol');
 
 if($step == "newFol"){
 $res = mysqli_query($connect, "SELECT * FROM `categorys`");
+// FIX: mysqli_query xato qaytarganda (masalan "categorys" jadvali bazada
+// mavjud emas yoki schema.sql hali ishga tushirilmagan bo'lsa), $res
+// "false" bo'lib qoladi. Shu holatda to'g'ridan-to'g'ri
+// mysqli_fetch_assoc($res) chaqirilsa, PHP 8.1+ da FATAL XATO beradi va
+// BUTUN so'rov (shu jumladan quyidagi "Bo'lim qo'shildi!" javobi ham)
+// hech narsa yubormay to'xtab qoladi — aynan shu sabab admin nomni
+// yuborgach bot "jim" (stop) bo'lib qolgan edi.
+if($res === false){
+error_log("[bot.php] newFol: 'categorys' jadvalini o'qishda SQL xatosi: ".mysqli_error($connect));
+sms($cid,"⚠️ Bo'lim qo'shishda xatolik yuz berdi (baza bilan bog'liq). Iltimos 'categorys' jadvali bazangizda mavjudligini tekshiring (schema.sql ishga tushirilganini tekshiring).",$panel2);
+@unlink("user/$cid.step");
+}else{
 $n = mysqli_fetch_assoc($res);
 $text=enc("encode",$text);
-mysqli_query($connect,"INSERT INTO categorys(category_name,category_status) VALUES('$text','ON');");
+$ins = mysqli_query($connect,"INSERT INTO categorys(category_name,category_status) VALUES('$text','ON');");
+if($ins === false){
+error_log("[bot.php] newFol: categorys jadvaliga yozishda SQL xatosi: ".mysqli_error($connect));
+sms($cid,"⚠️ Bo'lim qo'shishda xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring yoki admin bilan bog'laning.",$panel2);
+}else{
 		bot('SendMessage',[
 		'chat_id'=>$cid,
 		'text'=>"Bo'lim qo'shildi!",
 		'parse_mode'=>'html',
 		'reply_markup'=>$panel2
 ]);
+}
 @unlink("user/$cid.step");
+}
 
 }
 
