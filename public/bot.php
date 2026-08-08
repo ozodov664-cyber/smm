@@ -405,7 +405,8 @@ $array['inline_keyboard'][count($ex)][0]['text'] = "🔄 Tekshirish";
 $array['inline_keyboard'][count($ex)][0]['callback_data'] = "result";
      bot('sendMessage',[
          'chat_id'=>$id,
-         'text'=>"⚠️ <b>Iltimos Botdan foydalanish uchun Homiy kanallarga obuna bo'ling:</b>",
+         'text'=>"⚠️ <b>Iltimos Botdan foydalanish uchun Homiy kanallarga obuna bo'ling:
+		 👨🏻‍💻 Coder: @Ozodovv56 </b>",
 'parse_mode'=>"html",
 'reply_markup'=>json_encode($array),
 ]);  
@@ -6077,7 +6078,8 @@ bot('SendVideo',[
 }
 if($text == "🤖 SMM Bot" and joinchat($cid)==1){
 sms($cid,"<b><i>🤖 SMM Bot Ochish Uchun Pastdgagi. ⬇️
- ➕ Yangi bot qo‘shish Tugmasini bosing</i></b>",json_encode([
+ ➕ Yangi bot qo‘shish Tugmasini bosing
+ Yoki @Ozodovv56 ga Murojaat qiling</i></b>",json_encode([
 'resize_keyboard'=>true,
 'keyboard'=>[
 [['text'=>"➕ Yangi bot qo‘shish"]],[['text'=>"➡️ Orqaga"]],
