@@ -904,7 +904,10 @@ $adm=$mysa['user_id'];
 mysqli_query($connect,"UPDATE orders SET status ='$inp' WHERE order_id = $io");
 if($inp=="Completed") {
 $sav = date("Y.m.d H:i:s");
-mysqli_query($connect,"UPDATE myorder SET status='$input', last_check='$sav' WHERE order_id=$io");
+// FIX: bu yerda "$input" degan HECH QAYERDA aniqlanmagan (undefined)
+// o'zgaruvchi ishlatilgan edi - shu sabab myorder.status doim BO'SH
+// qiymatga o'rnatilardi ("Completed" o'rniga). To'g'ri o'zgaruvchi - $inp.
+mysqli_query($connect,"UPDATE myorder SET status='$inp', last_check='$sav' WHERE order_id=$io");
 }else{
 mysqli_query($connect,"UPDATE myorder SET status='$inp' WHERE order_id=$io");
 }
@@ -3935,6 +3938,39 @@ file_put_contents("user/$chat_id.step",'plus');
 if($step == "plus"){
 if($cid == $admin){
 if(is_numeric($text)=="true"){
+// FIX: avval "qo'shildi" xabari yuborilib, KEYIN UPDATE bajarilardi.
+// mysqli_report OFF bo'lgani uchun UPDATE xato bersa ham (masalan
+// $saved bo'sh/noto'g'ri, ulanish uzilgan va h.k.) bu HECH QANDAY
+// xatolik chiqarmay jim o'tib ketardi - natijada admin va
+// foydalanuvchiga "pul qo'shildi" xabari ketardi, lekin balans
+// bazada aslida yangilanmagan bo'lardi. Endi avval UPDATE bajariladi,
+// natija ($miqdor bazada haqiqatan ham saqlanganmi) tekshiriladi,
+// va faqat shundan keyin muvaffaqiyat xabari yuboriladi.
+$rew = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM users WHERE id = $saved"));
+if(!$rew){
+bot('SendMessage',[
+'chat_id'=>$cid,
+'text'=>"<b>❌ Xatolik: foydalanuvchi (ID: $saved) bazada topilmadi. Balans yangilanmadi.</b>",
+'parse_mode'=>'html',
+'reply_markup'=>$panel,
+]);
+error_log("[bot.php][plus] Foydalanuvchi topilmadi: saved=$saved");
+@unlink("user/$cid.step");
+}else{
+$miqdor = $text+$rew['balance'];
+$p2 =$text+$rew['outing'];
+mysqli_query($connect,"UPDATE users SET balance=$miqdor, outing=$p2 WHERE id =$saved");
+$err = mysqli_error($connect);
+$tekshir = mysqli_fetch_assoc(mysqli_query($connect,"SELECT balance FROM users WHERE id = $saved"));
+if($err || !$tekshir || (float)$tekshir['balance'] != (float)$miqdor){
+bot('SendMessage',[
+'chat_id'=>$cid,
+'text'=>"<b>❌ Xatolik: balansni yangilab bo'lmadi.</b>\n<code>".htmlspecialchars((string)$err)."</code>",
+'parse_mode'=>'html',
+'reply_markup'=>$panel,
+]);
+error_log("[bot.php][plus] UPDATE muvaffaqiyatsiz. saved=$saved miqdor=$miqdor mysqli_error=".$err);
+}else{
 bot('sendMessage',[
 'chat_id'=>$saved,
 'text'=>"<b>Adminlar tomonidan hisobingiz $text so‘m to'ldirildi</b>",
@@ -3947,11 +3983,9 @@ bot('sendMessage',[
 'parse_mode'=>"html",
 'reply_markup'=>$panel,
 ]);
-$rew = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM users WHERE id = $saved"));
-$miqdor = $text+$rew['balance'];
-$p2 =$text+$rew['outing'];
-mysqli_query($connect,"UPDATE users SET balance=$miqdor, outing=$p2 WHERE id =$saved");
+}
 @unlink("user/$cid.step");
+}
 }else{
 bot('SendMessage',[
 'chat_id'=>$cid,
@@ -3980,6 +4014,33 @@ file_put_contents("user/$chat_id.step",'minus');
 if($step == "minus"){
 if($cid == $admin){
 if(is_numeric($text)=="true"){
+// FIX: "plus" bo'limidagi bilan bir xil sabab - avval UPDATE bajariladi,
+// natija tekshiriladi, faqat shundan keyin "olindi" xabari yuboriladi.
+$rew = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM users WHERE id = $saved"));
+if(!$rew){
+bot('SendMessage',[
+'chat_id'=>$cid,
+'text'=>"<b>❌ Xatolik: foydalanuvchi (ID: $saved) bazada topilmadi. Balans yangilanmadi.</b>",
+'parse_mode'=>'html',
+'reply_markup'=>$panel,
+]);
+error_log("[bot.php][minus] Foydalanuvchi topilmadi: saved=$saved");
+@unlink("user/$cid.step");
+}else{
+$miqdor =$rew['balance'] - $text;
+$p2 =$rew['outing'] - $text;
+mysqli_query($connect,"UPDATE users SET balance=$miqdor, outing=$p2 WHERE id =$saved");
+$err = mysqli_error($connect);
+$tekshir = mysqli_fetch_assoc(mysqli_query($connect,"SELECT balance FROM users WHERE id = $saved"));
+if($err || !$tekshir || (float)$tekshir['balance'] != (float)$miqdor){
+bot('SendMessage',[
+'chat_id'=>$cid,
+'text'=>"<b>❌ Xatolik: balansni yangilab bo'lmadi.</b>\n<code>".htmlspecialchars((string)$err)."</code>",
+'parse_mode'=>'html',
+'reply_markup'=>$panel,
+]);
+error_log("[bot.php][minus] UPDATE muvaffaqiyatsiz. saved=$saved miqdor=$miqdor mysqli_error=".$err);
+}else{
 bot('sendMessage',[
 'chat_id'=>$saved,
 'text'=>"<b>Adminlar tomonidan hisobingizdan $text so‘m olindi.</b>",
@@ -3992,11 +4053,9 @@ bot('sendMessage',[
 'parse_mode'=>"html",
 'reply_markup'=>$panel,
 ]);
-$rew = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM users WHERE id = $saved"));
-$miqdor =$rew['balance'] - $text;
-$p2 =$rew['outing'] - $text;
-mysqli_query($connect,"UPDATE users SET balance=$miqdor, outing=$p2 WHERE id =$saved");
+}
 @unlink("user/$cid.step");
+}
 }else{
 bot('SendMessage',[
 'chat_id'=>$cid,
