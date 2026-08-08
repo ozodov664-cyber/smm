@@ -4,11 +4,17 @@
 # bo'lgan attribut nomi bo'lishi SHART. Noto'g'ri/mavjud bo'lmagan nom butun
 # build'ni "error: attribute 'X' missing" bilan yiqitadi.
 #
-# bot.php va sql_connect.php qaysi extension'lardan foydalanishi tekshirilgan:
+# bot.php va sql_connect.php qaysi extension'lardan foydalanishi tekshirilgan
+# (butun fayl grep qilinib, chaqirilayotgan funksiyalar ro'yxati tasdiqlangan):
 #   - mysqli        -> sql_connect.php, barcha mysqli_* chaqiruvlar
-#   - curl          -> bot() funksiyasi (Telegram Bot API'ga so'rov)
+#   - curl          -> bot() va api_get() funksiyalari (Telegram/provider API'ga so'rov)
 #   - mbstring      -> mb_stripos, mb_strpos, mb_convert_encoding
-#   - simplexml     -> simplexml_load_string (nomer/SMS API javobini o'qishda)
+# FIX: "simplexml" kengaytmasi avval bu yerda bor edi, lekin bot.php faylining
+# hech qayerida simplexml_load_string (yoki boshqa XML funksiyasi) ISHLATILMAYDI
+# (SMS API javobi JSON formatida o'qiladi, XML emas) — shuning uchun bu keraksiz
+# qator olib tashlandi. Har bir qo'shimcha nixPkgs yozuvi build'ni yiqitish xavfini
+# oshiradi (nomi biroz noto'g'ri bo'lsa ham), shuning uchun faqat haqiqatan
+# ishlatiladigan kengaytmalar qoldirildi.
 # (json, session, ctype, filter kabi kengaytmalar PHP 8.2'da core'ga
 # kiritilgan — ularni alohida qo'shish shart emas va bu build'da xatoga olib keladi.)
 [phases.setup]
@@ -16,8 +22,7 @@ nixPkgs = [
   "php82",
   "php82Extensions.mysqli",
   "php82Extensions.curl",
-  "php82Extensions.mbstring",
-  "php82Extensions.simplexml"
+  "php82Extensions.mbstring"
 ]
 
 # MUHIM: loyihada composer.json UMUMAN YO'Q (tashqi PHP kutubxona ishlatilmagan,

@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `id` BIGINT NOT NULL,                     -- Telegram chat_id (asosiy kalit)
   `status` VARCHAR(20) NOT NULL DEFAULT 'active',   -- active / deactive
   `balance` DECIMAL(15,2) NOT NULL DEFAULT 0,
-  `outing` DECIMAL(15,2) NOT NULL DEFAULT 0,        -- jami sarflangan summa
+  `outing` DECIMAL(15,2) NOT NULL DEFAULT 0,        -- jami hisobga kiritilgan (to'ldirilgan) summa (bot.php: "{outing} - Kiritgan pullar miqdori")
   `api_key` VARCHAR(64) DEFAULT NULL,               -- foydalanuvchining ichki tokeni
   `referal` VARCHAR(32) DEFAULT NULL,               -- shu foydalanuvchining o'z referal kodi
   PRIMARY KEY (`id`),

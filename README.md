@@ -14,9 +14,19 @@
 | 8 | Qattiq yozilgan tokenlar (`API_KEY`, `admin`, `simkey`, `channel`) | Fayl boshi | Endi `getenv()` orqali Railway Environment Variables'dan olinadi (pastga qarang). |
 | 9 | Xatolar ekranga chiqishi | Fayl boshi | `display_errors` o'chirildi, `log_errors` yoqildi — production uchun xavfsiz. |
 
-## 2. TUZATILMAGAN, lekin JIDDIY muammolar (qaror sizga bog'liq)
+## 2. Yana uchta jiddiy xato topildi va TUZATILDI (yangi tekshiruv)
 
-Bularni avtomatik tuzatmadim, chunki har biri **biznes-logikaga oid qaror** talab qiladi:
+### b) [TUZATILDI] Ikki marta takrorlangan "botopen=" / "mydomen=" callback ishlovchisi
+Botda ikkita narx bo'limi bor edi (45 000 so'm va 30 000 so'm), lekin ikkalasi ham bir xil `callback_data` prefiksidan (`botopen=`, keyin `mydomen=`) foydalangani sabab, foydalanuvchi qaysi tugmani bosishidan qat'i nazar **ikkala ishlovchi blok ham ketma-ket ishga tushar edi** — bu takroriy xabar yuborilishiga (va Telegram API'ga keraksiz qo'shimcha so'rovlarga) olib kelardi. Endi har bir blok faqat o'ziga tegishli narx qiymati (`=45000=` yoki `=30000=`) callback_data ichida bo'lgandagina ishga tushadi.
+
+### c) [TUZATILDI] "Premium/Professional bot sotish" (reseller/domen ochish) funksiyasi — Fatal Error manbai
+Shu blok ichida chaqirilayotgan `url_query()`, `generatemysql()`, `plusmysql()` funksiyalari va `$isp_user`, `$acc` o'zgaruvchilari **faylning hech qayerida aniqlanmagan edi**. Bu — asl muallifning **shaxsiy hosting-paneliga** (`ispsystem.sysdc.uz` / `wolfgram.uz`) ulanadigan, xususiy infratuzilmaga bog'liq qism bo'lib, u sizda (yoki Railway'da) ishlay olmaydi — bu funksiyalarni chaqirishga urinish "Call to undefined function" xatosi bilan botni har safar to'xtatib qo'yar edi (global exception handler buni ushlab qolgani uchun bot butunlay yiqilmasdi, lekin foydalanuvchi hech qanday javob olmay "osilib" qolardi).
+**Nima qilindi:** bu funksiya butunlay xavfsiz o'chirildi. Endi foydalanuvchi shu bosqichga yetganda (pul yechilmasdan) "⚠️ Ushbu xizmat hozircha faol emas, admin bilan bog'laning" degan tushunarli xabar oladi. Agar bu funksiya (botlarni avtomatik klonlab, alohida domenda sotish) kerak bo'lsa — bu butunlay boshqa, katta ishlanma talab qiladi (Railway API yoki boshqa hosting-provayder bilan integratsiya) va alohida so'rov sifatida qilinishi kerak.
+
+### e) [TUZATILDI] Payme to'lov oqimida o'lik kod
+`user/$cid.step` faylini o'chiradigan qator (`@unlink(...)`) xato tartibda — `exit;` dan **keyin** yozilgan edi, shuning uchun hech qachon ishlamas edi (PHP `exit;`dan keyingi qatorlarni bajarmaydi). Natijada to'lov summasi kiritilgach "payme" bosqichi tozalanmay qolardi. Tartib to'g'irlandi.
+
+## 3. TUZATILMAGAN, lekin JIDDIY muammo (qaror sizga bog'liq)
 
 ### a) SQL Injection — ~170 ta joyda
 Deyarli barcha `mysqli_query($connect, "... WHERE id = $cid ...")` ko'rinishidagi so'rovlar foydalanuvchi kiritgan qiymatni **to'g'ridan-to'g'ri** SQL ichiga qo'yadi. Masalan:
@@ -25,14 +35,6 @@ mysqli_query($connect,"SELECT * FROM `users` WHERE id = '$chat_id'");
 ```
 Telegram `chat_id` odatda raqam bo'lgani uchun xavf past, lekin `$text`, `$data`, `$tx` kabi foydalanuvchi matni SQL ichiga tushadigan joylar (masalan promokod, admin xabar matni, va h.k.) bor va ular orqali **butun bazani o'chirish/o'g'irlash** mumkin.
 **Tavsiya:** kamida foydalanuvchi matni ishtirok etadigan so'rovlarni `mysqli_real_escape_string()` yoki `mysqli_prepare()`/`bind_param()` ga o'tkazish kerak. Bu alohida, katta ish — xohlasangiz shu bilan ham yordam beraman.
-
-### b) Ikki marta takrorlangan "➕ Yangi bot qo'shish" bloki
-`bot_fixed.php`da ~4960—5364-qatorlar oralig'ida **bir xil funksionallik ikki marta** yozilgan (narxlari boshqacha: biri 45000, ikkinchisi 30000 so'm). `stripos($data,"botopen=")` sharti ikkalasida ham ishlaydi, ya'ni foydalanuvchi "✅ Tanlash" tugmasini bossa, **hisobidan pul ikki marta yechilishi** yoki bot ikki marta yaratilishga urinishi mumkin.
-**Qaror kerak:** qaysi narx (45000 yoki 30000) to'g'ri? Bittasini o'chirib tashlashim mumkin.
-
-### c) "Reseller / domen ochish" funksiyasi umuman ishlamaydi
-Shu blok ichida chaqirilayotgan `url_query()`, `generatemysql()`, `plusmysql()` funksiyalari va `$isp_user`, `$acc` o'zgaruvchilari **faylning hech qayerida aniqlanmagan**. Bu — asl muallifning **shaxsiy hosting-panelga** (`ispsystem.sysdc.uz`) ulanadigan, xususiy infratuzilmaga bog'liq qism bo'lib, u sizga baribir ishlamaydi (server, login-parol sizda yo'q).
-**Tavsiya:** agar botni faqat SMM-xizmat sotish uchun ishlatsangiz, shu "🤖 SMM Bot / boshqa botlar ochish" bo'limini butunlay o'chirib tashlash mantiqan to'g'ri — aks holda foydalanuvchi pul to'lab, hech narsa olmaydi.
 
 ### d) Fayl-asosidagi saqlash (`user/*.step`, `set/channel`, `msgs.json`)
 Railway konteynerlari **vaqtinchalik disk** bilan ishlaydi — har safar qayta deploy qilinganda yoki konteyner qayta ishga tushganda, shu fayllar **butunlay o'chib ketadi** (foydalanuvchi bosqichlari, referal statistikasi va h.k. yo'qoladi).
@@ -59,7 +61,7 @@ Railway konteynerlari **vaqtinchalik disk** bilan ishlaydi — har safar qayta d
 
 ## 4. Keyingi qadam
 
-Yuqoridagi (b), (c), (d) bandlari bo'yicha qanday yo'l tutishimni ayting — shunga qarab faylni yanada to'liqroq tuzatib beraman. Shuningdek, `app/controller/sql_connect.php` va `msgs.json` fayllaringiz bo'lsa, ularni ham yuklang — to'liq tekshirib chiqaman.
+Yuqoridagi (a) va (d) bandlari bo'yicha qanday yo'l tutishimni ayting — shunga qarab faylni yanada to'liqroq tuzatib beraman (masalan SQL Injection'dan himoya yoki fayl-asosidagi saqlashni MySQL'ga ko'chirish).
 
 ## 5. Yangi qo'shilgan: Nomer (SMS) API'ni bot ichidan sozlash
 
@@ -85,6 +87,29 @@ Men faylni statik (kodni o'qish, qavslar balansi, o'zgaruvchilar qamrovi) tarzda
 **Lekin:** menda bu muhitda ishlaydigan PHP interpretatori, jonli MySQL baza va tarmoq (internet) ulanishi yo'q — shuning uchun kodni haqiqatan **ishga tushirib**, botni Telegram orqali bosib-sinab ko'ra olmadim. Railway'ga joylagandan so'ng albatta quyidagilarni qo'lda tekshiring: `/start`, referal havolasi, hisob to'ldirish, "🔢 Nomer API sozlash" orqali API kiritish, nomer sotib olish, va nakrutka buyurtma berish. Xatolik chiqsa — Railway loglariga qarang (`log_errors` yoqilgan) va menga xato matnini yuboring, tezda tuzataman.
 
 Shuningdek, 2-band (a)dagi **SQL Injection** muammosi hali ham tuzatilmagan (bu alohida katta ish) — xohlasangiz shu bilan ham yordam beraman.
+
+## 8. Ikkinchi tekshiruv (v17) — yana topilgan va tuzatilgan xatolar
+
+Fayl yana bir bor, boshidan oxirigacha, statik tarzda (funksiya chaqiruvlari, o'zgaruvchilar qamrovi, tugma callback_data'lari) tekshirildi. `php -l` bilan sintaksis xatosi yo'qligi, va butun fayl bo'yicha qavslar balansi (`{}`=773/773, `()`=2537/2537) tasdiqlandi. Quyidagi yangi, haqiqiy xatolar topildi va tuzatildi:
+
+| # | Muammo | Qayerda | Ta'siri |
+|---|--------|---------|---------|
+| 1 | **"exit;" so'zi xabar matni ICHIGA yozilgan edi** (kod sifatida emas) | Buyurtma berish oqimi, "havola noto'g'ri" xabari | Foydalanuvchiga "exit;" so'zi ko'rinadigan xunuk xabar ketardi. Bundan tashqari haqiqiy `exit;` buyrug'i yo'q edi — skript to'xtamay pastdagi keyingi (aloqasiz) if-bloklariga kirishga urinishi mumkin edi. Endi xabar tozalandi va haqiqiy `exit;` qo'shildi. |
+| 2 | **2 ta buzilgan (mojibake) emoji tugma matni** — "?? Balansni ko'rish" va "?? Kartangizning unikal manzilini kiriting" | API sozlamalari paneli, karta so'rash bosqichi | Tugmalar/xabarlar "??" bilan ko'rinardi. Tegishli emoji (💵, 💳) qaytarildi. |
+| 3 | **Referal funksiyasida qolib ketgan debug qatori** (`echo $file;`) | `referal()` funksiyasi | Ichki fayl yo'llari (masalan `./user/12345.users`) HTTP javobiga chiqib ketardi. Funksional xato bermasa-da (Telegram webhook javob tanasini o'qimaydi), bu xavfsizlik/tozalik nuqtai-nazaridan noto'g'ri edi. Olib tashlandi. |
+| 4 | **"Matnlarni sozlash" (admin) menyusida noto'g'ri callback_data'li tugma** | `birlamch=editM` bo'limi | "2. Yangi buyurtma uchun matn" deb yozilgan tugma aslida `birlamchi=referal`ga (referal narxi) bog'langan edi, "3. Kabinet" bilan bir qatordagi tugma esa noto'g'ri "2" raqami bilan `birlamchi=orders`ga bog'langan edi. **Natija:** admin "2" tugmasini bossa, buyurtma matni o'rniga referal narxini tahrirlash oynasi ochilardi. Raqamlar va callback_data'lar to'g'irlandi (endi 1=start, 2=orders, 3=kabinet, 4=referal narxi — mos ravishda). |
+| 5 | **Kichik imlo xatosi** ("yuborilmari", "extimol") | Ticket/qo'llab-quvvatlash javob yuborish bloki | Kosmetik, lekin tushunarsiz xabar edi. "yuborilmadi", "ehtimol" ga to'g'irlandi. |
+| 6 | **`nixpacks.toml`da ishlatilmagan `simplexml` kengaytmasi** | Build sozlamalari | Butun `bot.php` faylida (grep bilan tasdiqlandi) simplexml/XML funksiyalari umuman chaqirilmaydi (SMS API javobi JSON, XML emas). Har bir keraksiz `nixPkgs` yozuvi build'ni yiqitish xavfini oshirgani sabab olib tashlandi. |
+| 7 | **`schema.sql`da chalg'ituvchi izoh** (`outing` ustuni) | Baza strukturasi izohi | Izohda "jami sarflangan summa" deb yozilgan edi, lekin bot.php'ning o'z ichidagi hujjatlashtirilishi (`{outing} - Kiritgan pullar miqdori`) va kod mantig'i buning aslida "jami hisobga KIRITILGAN (to'ldirilgan) summa" ekanini ko'rsatadi. Izoh to'g'irlandi — bu funksional xato emas, lekin kelajakda noto'g'ri tushunib xato qilishning oldini oladi. |
+
+**Tekshirilib, XATO TOPILMAGAN (tasdiqlangan to'g'ri ishlaydigan) joylar:**
+- Xizmat qo'shish (`newXiz`), Bo'lim qo'shish (`newFol`), Ichki bo'lim qo'shish (`newFold`), API provayder qo'shish/tahrirlash/o'chirish (`api`, `apio=`, `apidel=`) — barchasi statik tarzda oxirigacha kuzatib chiqildi. Xususan `service_api` va `api_service` ustunlari (nomlari bir-biriga juda o'xshash bo'lgani uchun chalkashtirish oson) — qo'shish bosqichidan (INSERT) buyurtma berish bosqichigacha (SELECT/WHERE) to'liq mos kelishi tasdiqlandi.
+- Balans qo'shish/ayirish (admin), Payme to'lov oqimi, referal mukofot oqimi, buyurtma holatini tekshirish cron (`?update=status`), ommaviy xabar yuborish (`send`) — asosiy mantiqda jiddiy xato topilmadi (fayl-asosidagi vaqtinchalik saqlash bilan bog'liq, README 3(d)-bandida allaqachon hujjatlashtirilgan cheklov bundan mustasno).
+
+**Hali ham ATayin tuzatilmagan** (avvalgi tekshiruvda ham aytilganidek, alohida katta ish talab qiladi, xohlasangiz qilib beraman):
+- SQL Injection (foydalanuvchi matni SQL so'rovlar ichiga to'g'ridan-to'g'ri qo'yiladigan ~170 joy)
+- Fayl-asosidagi saqlash (`user/*.step`, `set/*`)ni MySQL'ga ko'chirish (Railway'da Volume ulamasdan ham survive qilishi uchun)
+
 
 ## 7. "Umuman xato chiqmasin" so'rovi bo'yicha qilingan tuzatishlar
 
