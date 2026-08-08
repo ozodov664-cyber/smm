@@ -57,6 +57,15 @@ Shuningdek, shu bloklarning birida aniqlanmagan `$my` o'zgaruvchisi ishlatilgan 
 | 8 | Qattiq yozilgan tokenlar (`API_KEY`, `admin`, `simkey`, `channel`) | Fayl boshi | Endi `getenv()` orqali Railway Environment Variables'dan olinadi (pastga qarang). |
 | 9 | Xatolar ekranga chiqishi | Fayl boshi | `display_errors` o'chirildi, `log_errors` yoqildi — production uchun xavfsiz. |
 
+## 0.3 v30 — Admin panelida "Foydalanuvchini boshqarish" ishlamasligi tuzatildi
+
+**Muammo:** Admin "👤 Foydalanuvchini boshqarish" orqali haqiqiy Telegram ID (masalan `5205037267`) kiritganda, foydalanuvchi bazada bo'lsa ham "Foydalanuvchi topilmadi" chiqardi.
+
+**Sabab:** `users` jadvalida ikkita har xil ID bor: `user_id` (ichki tartib raqami — 1, 2, 3...) va `id` (haqiqiy Telegram chat ID). Admin qidiruv qutisiga tabiiy ravishda haqiqiy Telegram ID kiritadi, lekin kod uni noto'g'ri — kichik tartib raqamlari saqlanadigan `user_id` — ustunidan qidirardi.
+
+**Tuzatildi:** Qidiruv endi to'g'ri `id` ustunidan (haqiqiy Telegram ID) amalga oshiriladi. (Referal tizimidagi shunga o'xshash qidiruv tekshirildi — u ataylab `user_id` bo'yicha ishlaydi va to'g'ri, tegilmadi.)
+
+
 ## 2. Yana uchta jiddiy xato topildi va TUZATILDI (yangi tekshiruv)
 
 ### b) [TUZATILDI] Ikki marta takrorlangan "botopen=" / "mydomen=" callback ishlovchisi

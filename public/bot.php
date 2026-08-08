@@ -3859,7 +3859,12 @@ file_put_contents("user/$cid.step",'iD');
 
 if($step == "iD"){
 if($cid == $admin){
-$rew = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM users WHERE user_id = $text"));
+// FIX: avval "WHERE user_id = $text" edi. `user_id` ustuni ICHKI tartib
+// raqami (1,2,3...), admin esa bu yerga odatda HAQIQIY Telegram ID'ni
+// (masalan 5205037267) kiritadi - bu qiymat `id` ustunida saqlanadi. Shu
+// sabab admin haqiqiy foydalanuvchi ID'sini kiritsa ham "topilmadi"
+// chiqardi. Endi to'g'ri `id` ustunidan qidiriladi.
+$rew = mysqli_fetch_assoc(mysqli_query($connect,"SELECT * FROM users WHERE id = $text"));
 if($rew){
 $idi = $rew['id'];
 file_put_contents("user/us.id",$idi);
