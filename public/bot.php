@@ -287,6 +287,20 @@ function get($h){
 return is_file($h) ? @file_get_contents($h) : '';
 }
 
+// Narxni chiroyli ko'rinishda chiqarish uchun: DECIMAL(15,4) ustunidan
+// kelgan "203.0000" kabi qiymatlarni ortiqcha nollarsiz ko'rsatadi
+// (butun son bo'lsa - "203", kasr bo'lsa - eng ko'pi 2 xonagacha, masalan "203.5").
+function fmt_price($v){
+    $v = (float)$v;
+    if($v == floor($v)){
+        return number_format($v,0,'.','');
+    }
+    $s = number_format($v,2,'.','');
+    $s = rtrim($s,'0');
+    $s = rtrim($s,'.');
+    return $s;
+}
+
 function put($h,$r){
 file_put_contents($h,$r);
 }
@@ -2881,7 +2895,7 @@ $a = mysqli_query($connect,"SELECT * FROM services WHERE category_id = '$n'");
 $c = mysqli_num_rows($a);
 while($s = mysqli_fetch_assoc($a)){
 $as++;
-$narx = $s['service_price'];
+$narx = fmt_price($s['service_price']);
 $txts.="<b>".$as."</b>: ".base64_decode($s['service_name'])." $narx - so‘m\n";
 
 $k[]=['text'=>$as,'callback_data'=>"delmat-".$s['service_id']];
@@ -4899,9 +4913,9 @@ exit;
 if((mb_stripos($data,"tanla1=")!==false and joinchat($chat_id)==1)){
 $n=explode("=",$data)[1];
 
-$adds=json_decode(get("set/sub.json"),1);
+$adds=json_decode(get("user/$chat_id.sub.json"),1);
 $adds['cate_id']=$n;
-put("set/sub.json",json_encode($adds));
+put("user/$chat_id.sub.json",json_encode($adds));
 
 
 $new_arr = [];
@@ -4939,11 +4953,11 @@ $a = mysqli_query($connect,"SELECT * FROM services WHERE category_id = '$n' AND 
 $c = mysqli_num_rows($a);
 while($s = mysqli_fetch_assoc($a)){
 $as++;
-$narx = $s['service_price'];
+$narx = fmt_price($s['service_price']);
 $k[]=['text'=>"".base64_decode($s['service_name'])." $narx - so‘m",'callback_data'=>"ordered=".$s['service_id']."=".$n];
 }
 $keyboard2=array_chunk($k,1);
-$adds=json_decode(get("set/sub.json"),1);
+$adds=json_decode(get("user/$chat_id.sub.json"),1);
 $keyboard2[]=[['text'=>"⏪ Orqaga",'callback_data'=>"tanla1=".$adds['cate_id']]];
 $kb=json_encode([
 'inline_keyboard'=>$keyboard2,
@@ -4973,7 +4987,7 @@ $a = mysqli_query($connect,"SELECT * FROM services WHERE service_id= '$n'");
 while($s = mysqli_fetch_assoc($a)){
 $nam = base64_decode($s['service_name']);
 $sid = $s['service_id'];
-$narx = $s['service_price'];
+$narx = fmt_price($s['service_price']);
 $curr = $s['api_currency'];
 $ab = $s['service_desc'] ? $ab=$s['service_desc'] : null;
 $api = $s['api_service'];
