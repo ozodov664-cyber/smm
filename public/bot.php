@@ -494,7 +494,13 @@ sms($cid.$chat_id,"🥶 Panel vaqtincha muzlatilgan",null);
 }
 
 $resu = mysqli_query($connect,"SELECT * FROM `settings`");
-$setting = mysqli_fetch_assoc($resu);
+// FIX: mysqli_fetch_assoc($resu) to'g'ridan-to'g'ri chaqirilardi. Agar
+// so'rov xato bersa ($resu===false, masalan "settings" jadvali mavjud
+// emas), mysqli_fetch_assoc(false) PHP 8.1+ da FATAL XATO beradi — bu esa
+// bu qator FAYL BOSHIDA, HAR BIR so'rovda ishlagani uchun, BUTUN botni
+// (har qanday tugma/xabarni) to'xtatib qo'yishi mumkin edi.
+$setting = ($resu !== false) ? mysqli_fetch_assoc($resu) : [];
+if(!is_array($setting)){ $setting = []; }
 
 if(!is_dir("user")) mkdir("user", 0755, true);
 if(!is_dir("set")) mkdir("set", 0755, true);
@@ -3129,10 +3135,19 @@ sms($cid,"
 
 
 if($text=="🗣 Referal" || $text=="/ref"){
-bot('SendPhoto',[
+// FIX: Bu yerda 'SendPhoto' ishlatilib, 'photo' parametriga
+// "https://t.me/akobir_bio/13" (ya'ni bir kanal postining ODDIY HAVOLASI,
+// haqiqiy rasm fayli EMAS) berilgan edi. Telegram API 'photo' parametrida
+// faqat file_id, to'g'ridan-to'g'ri rasm fayliga URL yoki yuklangan faylni
+// qabul qiladi — t.me/... post havolasi rasm sifatida ISH BERMAYDI va
+// Telegram "Bad Request" xatosi bilan rad etadi. bot() funksiyasi bu
+// xatoni faqat logga yozadi (error_log) va HECH NARSA yubormaydi — shu
+// sabab "Referal" tugmasi bosilganda foydalanuvchiga JAVOB umuman
+// kelmasdi. Rasm shart emasligi uchun oddiy sendMessage'ga o'tkazildi —
+// bu variant har doim yetkaziladi.
+bot('sendMessage',[
 'chat_id'=>$cid,
-'photo'=>"https://t.me/akobir_bio/13",
-'caption'=>"<b>🧲 Sizning referal havolangiz:
+'text'=>"<b>🧲 Sizning referal havolangiz:
 
 <i>https://t.me/$bot?start=user".$rew['user_id']."</i>
 
@@ -4732,6 +4747,18 @@ bot("answerCallbackQuery",[
 
 if($text=="🛍 Xizmatlar" and joinchat($cid)==1){
 $a = mysqli_query($connect,"SELECT * FROM `categorys`");
+// FIX: Avval to'g'ridan-to'g'ri mysqli_num_rows($a) chaqirilardi. Agar
+// so'rov xato bersa (masalan "categorys" jadvali bazada mavjud emas,
+// yoki jadval/ustun nomi mos kelmasa), mysqli_query "false" qaytaradi va
+// mysqli_num_rows(false) PHP 8.1+ da FATAL XATO (TypeError) beradi —
+// bu esa butun so'rovni to'xtatib, foydalanuvchiga hech qanday javob
+// yubormay qo'yardi. Endi bunday holatda xato logga yoziladi va
+// foydalanuvchiga tushunarli xabar ko'rsatiladi.
+if($a === false){
+error_log("[bot.php] Xizmatlar: 'categorys' jadvalini o'qishda SQL xatosi: ".mysqli_error($connect));
+sms($cid,"⚠️ Xizmatlarni yuklashda xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring yoki admin bilan bog'laning.",null);
+exit;
+}
 $c = mysqli_num_rows($a);
 while($s = mysqli_fetch_assoc($a)){
 $k[]=['text'=>"".enc("decode",$s['category_name']),'callback_data'=>"tanla1=".$s['category_id']];
