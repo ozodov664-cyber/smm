@@ -2627,7 +2627,9 @@ if($step == "newSub"){
 		if(isset($text)){
 $ci=get("set/c3.txt");
 $to=enc("encode",$text);
+error_log("[bot.php] DEBUG newSub: cid=$cid text=".$text." ci(cate_id)='".$ci."'");
 $ins = mysqli_query($connect,"INSERT INTO subcates(`name`,`cate_id`) VALUES ('$to','$ci')");
+error_log("[bot.php] DEBUG newSub: ins=".var_export($ins,true)." mysqli_error=".mysqli_error($connect)." insert_id=".mysqli_insert_id($connect));
 // FIX: Avval bu yerda INSERT natijasi tekshirilmasdan, har doim "Pastki
 // bo'lim qo'shildi!" deb yozilardi — hatto INSERT xato bergan taqdirda
 // ham (masalan "subcates" jadvali bazada hali mavjud emas bo'lsa, ya'ni
